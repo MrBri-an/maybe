@@ -823,6 +823,130 @@ h3 {
   font-size: 0.8rem;
 }
 
+.access-main {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  padding-block: max(var(--space-12), env(safe-area-inset-top))
+    max(var(--space-12), env(safe-area-inset-bottom));
+}
+
+.access-brand {
+  margin-bottom: var(--space-6);
+  color: var(--color-celebration);
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.access-card {
+  width: 100%;
+  padding: clamp(var(--space-6), 6vw, var(--space-12));
+  background:
+    radial-gradient(circle at 90% 5%, rgb(139 58 82 / 18%), transparent 18rem),
+    var(--color-surface);
+}
+
+.access-card h1 {
+  margin-top: var(--space-6);
+  font-size: clamp(2.4rem, 9vw, 4.5rem);
+  line-height: 0.98;
+}
+
+.access-card > p {
+  max-width: 38rem;
+  margin: var(--space-6) 0 0;
+  color: var(--color-text-soft);
+}
+
+.access-card form:not(.access-secondary-action) {
+  margin-top: var(--space-8);
+}
+
+.access-card-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.access-card-topline > span {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.access-form {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.puzzle-form {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.access-alert,
+.access-success {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-small);
+  font-size: 0.83rem;
+}
+
+.access-alert {
+  border-color: rgb(255 155 155 / 34%);
+  background: rgb(255 155 155 / 7%);
+  color: var(--color-error) !important;
+}
+
+.access-success {
+  border-color: rgb(143 211 174 / 34%);
+  background: rgb(143 211 174 / 7%);
+  color: var(--color-success) !important;
+}
+
+.access-note {
+  color: var(--color-text-muted) !important;
+  font-size: 0.78rem;
+}
+
+.access-secondary-action {
+  margin-top: var(--space-4);
+  text-align: center;
+}
+
+.world-card {
+  text-align: center;
+}
+
+.world-card .badge {
+  margin-inline: auto;
+}
+
+.world-card h1,
+.world-card > p {
+  margin-inline: auto;
+}
+
+.world-status {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  margin-block: var(--space-8);
+  color: var(--color-success);
+}
+
+.world-status p {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: 0.85rem;
+}
+
 @media (min-width: 36rem) {
   .content-container {
     padding-inline: max(var(--space-6), env(safe-area-inset-left));
