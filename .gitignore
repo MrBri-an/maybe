@@ -1,0 +1,54 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+coverage/
+playwright-report/
+test-results/
+
+# next.js
+.next/
+out/
+
+# production
+dist/
+
+# misc
+.DS_Store
+Thumbs.db
+*.pem
+.vscode/
+.idea/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# local environment files
+.env
+.env.local
+.env.*.local
+
+# private and transient media (introduced in a later phase)
+media/private/
+media/imports/
+media/temp/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
