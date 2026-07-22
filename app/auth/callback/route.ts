@@ -14,7 +14,7 @@ const emailOtpTypes = new Set<EmailOtpType>([
 ]);
 
 function accessRedirect(request: NextRequest, params: Record<string, string>) {
-  const target = new URL("/access", request.url);
+  const target = new URL("/", request.url);
   Object.entries(params).forEach(([key, value]) => target.searchParams.set(key, value));
   return NextResponse.redirect(target);
 }

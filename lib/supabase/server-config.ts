@@ -1,30 +1,55 @@
 import "server-only";
 
-import { z } from "zod";
-import { getPublicSupabaseConfig } from "./public-config";
+const requiredServerVariables = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "APP_BASE_URL",
+] as const;
 
-const privateConfigSchema = z.object({
-  serviceRoleKey: z.string().min(1),
-  appBaseUrl: z.url(),
-});
+type RequiredServerVariable = (typeof requiredServerVariables)[number];
 
-export type ServerSupabaseConfig = {
+type ServerSupabaseConfig = {
   url: string;
   anonKey: string;
   serviceRoleKey: string;
   appBaseUrl: string;
 };
 
-export function getServerSupabaseConfig(): ServerSupabaseConfig | null {
-  const publicConfig = getPublicSupabaseConfig();
-  const privateResult = privateConfigSchema.safeParse({
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    appBaseUrl: process.env.APP_BASE_URL,
-  });
+function clean(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
 
-  if (!publicConfig || !privateResult.success) {
+function values(): Record<RequiredServerVariable, string> {
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: clean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    SUPABASE_SERVICE_ROLE_KEY: clean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    APP_BASE_URL: clean(process.env.APP_BASE_URL),
+  };
+}
+
+export function getMissingServerConfigVariables(): RequiredServerVariable[] {
+  const configured = values();
+  return requiredServerVariables.filter((name) => !configured[name]);
+}
+
+export function getServerSupabaseConfig(): ServerSupabaseConfig | null {
+  const configured = values();
+
+  if (requiredServerVariables.some((name) => !configured[name])) return null;
+
+  try {
+    new URL(configured.NEXT_PUBLIC_SUPABASE_URL);
+    new URL(configured.APP_BASE_URL);
+  } catch {
     return null;
   }
 
-  return { ...publicConfig, ...privateResult.data };
+  return {
+    url: configured.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: configured.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serviceRoleKey: configured.SUPABASE_SERVICE_ROLE_KEY,
+    appBaseUrl: configured.APP_BASE_URL,
+  };
 }

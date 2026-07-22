@@ -1,224 +1,155 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CelestialBackground } from "@/components/motion/celestial-background";
 
-const openingScenes = [
-  {
-    number: "01",
-    eyebrow: "An ordinary moment",
-    title: "Brian was working.",
-    body: "Work was still in progress. Brian had not finished for the day.",
-    visual: "desk",
-  },
-  {
-    number: "02",
-    eyebrow: "Then, a profile",
-    title: "Jessica appeared on Snapchat.",
-    body: "This is an original, playful reconstruction—not a copy of Snapchat or a real message screen.",
-    visual: "profile",
-  },
-  {
-    number: "03",
-    eyebrow: "A practical idea",
-    title: "A screenshot, for later.",
-    body: "Brian took one so he could message after work.",
-    visual: "flash",
-  },
-  {
-    number: "04",
-    eyebrow: "Immediately exposed",
-    title: "Snapchat notified Jessica.",
-    body: "The screenshot did not stay quiet. The app sent its notification before work was finished.",
-    visual: "notice",
-  },
-  {
-    number: "05",
-    eyebrow: "So, an explanation",
-    title: "Brian explained himself.",
-    body: "No invented dialogue lives here—only the fact that an explanation followed.",
-    visual: "explain",
-  },
-  {
-    number: "06",
-    eyebrow: "And then",
-    title: "They continued talking.",
-    body: "The conversation carried on beyond that unexpected screenshot notification.",
-    visual: "connection",
-  },
-  {
-    number: "07",
-    eyebrow: "A small beginning",
-    title: "The Beginning of Maybe.",
-    body: "An ordinary working day became a moment worth remembering—without rushing what comes next.",
-    visual: "maybe",
-  },
+const scenes = [
+  { eyebrow: "An ordinary day", title: "Brian was working.", body: "Nothing cinematic. Just a normal day, still in progress.", visual: "work" },
+  { eyebrow: "Then something shifted", title: "Jessica’s profile appeared.", body: "A small interruption arrived in the middle of the ordinary.", visual: "profile" },
+  { eyebrow: "Saved for later", title: "One screenshot.", body: "Brian saved it so he could message properly when work was done.", visual: "flash" },
+  { eyebrow: "Not exactly discreet", title: "The app revealed it immediately.", body: "Snapchat announced the screenshot before the moment could quietly pass.", visual: "ripple" },
+  { eyebrow: "The honest next step", title: "Brian explained himself.", body: "This reconstruction invents no messages—only the explanation that followed.", visual: "bubbles" },
+  { eyebrow: "A moment became a thread", title: "They kept talking.", body: "The explanation did not end the moment. It became an ongoing conversation.", visual: "connection" },
+  { eyebrow: "And somehow", title: "The Beginning of Maybe.", body: "An ordinary working day became a beginning worth remembering, without rushing what comes next.", visual: "maybe" },
 ] as const;
 
 const rooms = [
-  { name: "Storybook", note: "Pages from the beginning", position: "north" },
-  { name: "Library", note: "A quiet reading room", position: "north-east" },
-  { name: "Puzzle Room", note: "Small, forgiving curiosities", position: "east" },
-  { name: "Jessica’s Radio", note: "Songs chosen with care", position: "south-east" },
-  { name: "Question Garden", note: "Thoughtful questions, always optional", position: "south" },
-  { name: "Gallery", note: "A few meaningful moments", position: "south-west" },
-  { name: "Our Journey", note: "Only the milestones that truly happen", position: "west" },
-  { name: "Maybe Days", note: "Gentle ideas for time together", position: "north-west" },
-  { name: "Our Corner", note: "A calm private conversation space", position: "inner-left" },
-  { name: "Open When", note: "Letters for another phase", position: "inner-right" },
+  { name: "Storybook", note: "Pages from the beginning", x: 50, y: 8 },
+  { name: "Library", note: "A quiet reading room", x: 76, y: 17 },
+  { name: "Puzzle Room", note: "Small, forgiving curiosities", x: 91, y: 39 },
+  { name: "Jessica’s Radio", note: "Songs chosen with care", x: 84, y: 68 },
+  { name: "Question Garden", note: "Thoughtful questions, always optional", x: 62, y: 88 },
+  { name: "Gallery", note: "A few meaningful moments", x: 36, y: 88 },
+  { name: "Our Journey", note: "Only milestones that truly happen", x: 15, y: 68 },
+  { name: "Maybe Days", note: "Gentle ideas for time together", x: 9, y: 39 },
+  { name: "Our Corner", note: "A calm private conversation space", x: 24, y: 17 },
+  { name: "Open When", note: "Letters for another phase", x: 50, y: 30 },
 ] as const;
 
-type WorldExperienceProps = {
-  logoutAction: () => Promise<void>;
-};
+type WorldExperienceProps = { logoutAction: () => Promise<void> };
+type SceneVisual = (typeof scenes)[number]["visual"];
 
-function SceneVisual({ visual }: { visual: (typeof openingScenes)[number]["visual"] }) {
+function StoryVisual({ kind, paused }: { kind: SceneVisual; paused: boolean }) {
   return (
-    <div className={`scene-visual scene-visual-${visual}`} aria-hidden="true">
-      <div className="scene-orbit" />
-      <div className="scene-object">
-        {visual === "desk" ? <><span /><span /><span /></> : null}
-        {visual === "profile" ? <><strong>J</strong><span /></> : null}
-        {visual === "flash" ? <><span className="flash-frame" /><strong>✦</strong></> : null}
-        {visual === "notice" ? <><span className="notice-dot" /><span className="notice-line" /><span className="notice-line notice-line-short" /></> : null}
-        {visual === "explain" ? <><span className="message-line message-line-one" /><span className="message-line message-line-two" /><span className="message-line message-line-three" /></> : null}
-        {visual === "connection" ? <><span className="connection-point connection-one" /><span className="connection-thread" /><span className="connection-point connection-two" /></> : null}
-        {visual === "maybe" ? <><span className="maybe-star">✦</span><span className="maybe-ring" /></> : null}
+    <motion.div className={`story-visual story-visual-${kind} ${paused ? "is-paused" : ""}`} aria-hidden="true" initial={{ scale: .92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+      <div className="visual-depth-ring" />
+      {kind === "work" ? <div className="work-scene"><span className="work-lamp" /><span className="work-screen" /><span className="work-desk" /><i /><i /><i /></div> : null}
+      {kind === "profile" ? <div className="floating-phone"><span className="phone-speaker" /><strong>J</strong><i /><i /></div> : null}
+      {kind === "flash" ? <><div className="floating-phone flash-phone"><strong>J</strong></div><span className="screenshot-flash" /></> : null}
+      {kind === "ripple" ? <div className="notice-core"><span>!</span><i /><i /><i /></div> : null}
+      {kind === "bubbles" ? <div className="conversation-visual"><span /><span /><span /><span /></div> : null}
+      {kind === "connection" ? <div className="light-connection"><span /><i /><span /></div> : null}
+      {kind === "maybe" ? <div className="maybe-reveal"><span>✦</span><i /><i /></div> : null}
+    </motion.div>
+  );
+}
+
+function Globe({ selected, onSelect, reduceMotion }: { selected: number; onSelect: (index: number) => void; reduceMotion: boolean }) {
+  const [interacting, setInteracting] = useState(false);
+  const path = rooms.map((room) => `${room.x},${room.y}`).join(" ");
+
+  return (
+    <div className={`globe-shell ${interacting ? "is-interacting" : ""} ${reduceMotion ? "is-reduced" : ""}`} onPointerEnter={() => setInteracting(true)} onPointerLeave={() => setInteracting(false)} onPointerDown={() => setInteracting(true)} onPointerUp={() => window.setTimeout(() => setInteracting(false), 1400)} onFocusCapture={() => setInteracting(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
+      <div className="world-globe" role="group" aria-label="Connected map of ten future rooms">
+        <svg className="globe-grid" viewBox="0 0 100 100" aria-hidden="true">
+          <defs><radialGradient id="globeGlow"><stop offset="0" stopColor="#6e2b41" stopOpacity=".5"/><stop offset="1" stopColor="#101327" stopOpacity=".08"/></radialGradient></defs>
+          <circle cx="50" cy="50" r="47" fill="url(#globeGlow)" />
+          <ellipse cx="50" cy="50" rx="47" ry="15" />
+          <ellipse cx="50" cy="50" rx="47" ry="31" />
+          <ellipse cx="50" cy="50" rx="18" ry="47" />
+          <ellipse cx="50" cy="50" rx="35" ry="47" />
+          <circle cx="50" cy="50" r="47" />
+          <motion.polyline points={`${path} ${rooms[0].x},${rooms[0].y}`} className="globe-path" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduceMotion ? 0 : 2.4 }} />
+          <motion.line x1="50" y1="30" x2={rooms[selected].x} y2={rooms[selected].y} className="selected-path" />
+        </svg>
+        <div className="globe-heart" aria-hidden="true"><span>✦</span><small>Maybe</small></div>
+        {rooms.map((room, index) => (
+          <button key={room.name} type="button" className="globe-node" style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={`${room.name}, locked, coming later`} onClick={() => onSelect(index)}>
+            <span aria-hidden="true" />
+            <strong className={index % 2 === 0 ? "node-label-right" : "node-label-left"}>{room.name}</strong>
+          </button>
+        ))}
       </div>
     </div>
   );
 }
 
 export function WorldExperience({ logoutAction }: WorldExperienceProps) {
-  const reduceMotion = useReducedMotion();
-  const [view, setView] = useState<"opening" | "map">("opening");
+  const reduceMotion = Boolean(useReducedMotion());
+  const [view, setView] = useState<"opening" | "world">("opening");
   const [sceneIndex, setSceneIndex] = useState(0);
+  const [playing, setPlaying] = useState(!reduceMotion);
   const [selectedRoom, setSelectedRoom] = useState(0);
-  const scene = openingScenes[sceneIndex];
+  const scene = scenes[sceneIndex];
   const selected = rooms[selectedRoom];
 
-  const showMap = () => setView("map");
-  const replay = () => {
-    setSceneIndex(0);
+  useEffect(() => {
+    if (!playing || reduceMotion || view !== "opening") return;
+    const timer = window.setTimeout(() => {
+      if (sceneIndex === scenes.length - 1) setView("world");
+      else setSceneIndex((current) => current + 1);
+    }, 5200);
+    return () => window.clearTimeout(timer);
+  }, [playing, reduceMotion, sceneIndex, view]);
+
+  const showWorld = () => { setPlaying(false); setView("world"); };
+  const replay = () => { setSceneIndex(0); setPlaying(!reduceMotion); setView("opening"); };
+  const backStory = () => {
+    setPlaying(false);
+    setSceneIndex((current) => Math.max(0, current - 1));
+  };
+  const returnToStory = () => {
+    setSceneIndex(scenes.length - 1);
+    setPlaying(false);
     setView("opening");
   };
-  const continueOpening = () => {
-    if (sceneIndex === openingScenes.length - 1) {
-      showMap();
-      return;
-    }
-    setSceneIndex((current) => current + 1);
-  };
-
-  const transition = reduceMotion
-    ? { duration: 0 }
-    : { duration: 0.48, ease: [0.22, 1, 0.36, 1] as const };
+  const continueStory = () => sceneIndex === scenes.length - 1 ? showWorld() : setSceneIndex((current) => current + 1);
+  const transition = { duration: reduceMotion ? 0 : .7, ease: [0.22, 1, 0.36, 1] as const };
 
   return (
     <div className="world-experience">
+      <CelestialBackground moonProgress={view === "world" ? 1 : sceneIndex / (scenes.length - 1)} />
       <header className="world-toolbar">
-        <div className="world-wordmark">
-          <span aria-hidden="true">✦</span>
-          <p>The Beginning of Maybe</p>
-        </div>
+        <div className="world-wordmark"><span aria-hidden="true">✦</span><p>The Beginning of Maybe</p></div>
         <div className="world-toolbar-actions">
-          {view === "opening" ? (
-            <Button type="button" variant="quiet" size="small" onClick={showMap}>Skip opening</Button>
-          ) : (
-            <Button type="button" variant="quiet" size="small" onClick={replay}>Replay opening</Button>
-          )}
-          <form action={logoutAction}>
-            <Button type="submit" variant="secondary" size="small">Log out</Button>
-          </form>
+          {view === "opening" ? <Button type="button" variant="quiet" size="small" onClick={showWorld}>Skip</Button> : <Button type="button" variant="quiet" size="small" onClick={replay}>Replay</Button>}
+          <form action={logoutAction}><Button type="submit" variant="secondary" size="small">Log out</Button></form>
         </div>
       </header>
 
       <AnimatePresence mode="wait" initial={false}>
         {view === "opening" ? (
-          <motion.main
-            className="opening-stage"
-            key={`opening-${sceneIndex}`}
-            initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }}
-            transition={transition}
-          >
-            <div className="opening-progress" aria-label={`Scene ${sceneIndex + 1} of ${openingScenes.length}`}>
-              <span>{scene.number}</span>
-              <div className="opening-progress-track" aria-hidden="true">
-                <span style={{ "--opening-progress": `${((sceneIndex + 1) / openingScenes.length) * 100}%` } as CSSProperties} />
-              </div>
-              <span>{String(openingScenes.length).padStart(2, "0")}</span>
-            </div>
-
-            <section className="opening-scene" aria-live="polite" aria-labelledby="opening-title">
-              <div className="opening-copy">
-                <Badge tone="rose">Playful reconstruction</Badge>
+          <motion.main className="cinematic-opening" key={`scene-${sceneIndex}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: reduceMotion ? 1 : 1.03 }} transition={transition}>
+            <div className="scene-counter" aria-label={`Scene ${sceneIndex + 1} of ${scenes.length}`}><span>{String(sceneIndex + 1).padStart(2, "0")}</span><i><b style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} /></i><span>{String(scenes.length).padStart(2, "0")}</span></div>
+            <section className="cinematic-scene" aria-live="polite" aria-labelledby="story-title">
+              <motion.div className="cinematic-copy" initial={{ opacity: 0, y: reduceMotion ? 0 : 24 }} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .15 }}>
+                <Badge tone="rose">A playful reconstruction</Badge>
                 <p className="opening-eyebrow">{scene.eyebrow}</p>
-                <h1 id="opening-title">{scene.title}</h1>
+                <h1 id="story-title">{scene.title}</h1>
                 <p>{scene.body}</p>
-                <div className="opening-controls">
-                  <Button type="button" onClick={continueOpening}>
-                    {sceneIndex === openingScenes.length - 1 ? "Enter the world" : "Continue"}
-                  </Button>
-                  <p>{reduceMotion ? "Reduced motion is active." : "Motion follows your device preference."}</p>
+                <div className="cinematic-controls">
+                  <Button type="button" variant="quiet" onClick={backStory} disabled={sceneIndex === 0}>Back</Button>
+                  <Button type="button" onClick={continueStory}>{sceneIndex === scenes.length - 1 ? "Enter the world" : "Continue"}</Button>
+                  <Button type="button" variant="secondary" onClick={() => setPlaying((current) => !current)} aria-pressed={!playing}>{playing ? "Pause" : "Play"}</Button>
                 </div>
-              </div>
-              <SceneVisual visual={scene.visual} />
+                <small>{reduceMotion ? "Reduced motion is active; scenes advance only when you choose." : playing ? "Playing automatically" : "Paused"}</small>
+              </motion.div>
+              <StoryVisual kind={scene.visual} paused={!playing} />
             </section>
           </motion.main>
         ) : (
-          <motion.main
-            className="world-map-view"
-            key="world-map"
-            initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={transition}
-          >
-            <header className="map-header">
+          <motion.main className="globe-view" key="globe" initial={{ opacity: 0, scale: reduceMotion ? 1 : .86 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 1.1, ease: transition.ease }}>
+            <header className="globe-header">
               <Badge tone="gold">Your private world</Badge>
-              <h1>A map of what may come next.</h1>
-              <p>
-                Every room is still locked. Explore the markers for a small preview;
-                no destination or feature has been created yet.
-              </p>
+              <h1>A world of what may come next.</h1>
+              <p>Every destination remains locked. Focus or tap a light to preview its future room.</p>
+              <Button type="button" variant="quiet" size="small" onClick={returnToStory}>Back to story</Button>
             </header>
-
-            <section className="constellation-map" aria-label="Future rooms map">
-              <div className="map-paths" aria-hidden="true"><span /><span /><span /></div>
-              <div className="map-centre" aria-hidden="true">
-                <span>✦</span>
-                <p>Maybe</p>
-              </div>
-              {rooms.map((room, index) => (
-                <button
-                  className={`room-marker room-${room.position}`}
-                  type="button"
-                  key={room.name}
-                  onClick={() => setSelectedRoom(index)}
-                  aria-pressed={selectedRoom === index}
-                  aria-label={`${room.name}, locked, coming later`}
-                >
-                  <span className="room-marker-dot" aria-hidden="true" />
-                  <span className="room-marker-copy">
-                    <strong>{room.name}</strong>
-                    <small>Locked · Coming later</small>
-                  </span>
-                </button>
-              ))}
-            </section>
-
-            <aside className="room-detail" aria-live="polite" aria-label="Selected future room">
-              <div>
-                <Badge>Locked · Coming later</Badge>
-                <h2>{selected.name}</h2>
-                <p>{selected.note}</p>
-              </div>
-              <span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span>
-            </aside>
+            <Globe selected={selectedRoom} onSelect={setSelectedRoom} reduceMotion={reduceMotion} />
+            <aside className="globe-detail" aria-live="polite"><div><Badge>Locked · Coming later</Badge><h2>{selected.name}</h2><p>{selected.note}</p></div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>
           </motion.main>
         )}
       </AnimatePresence>

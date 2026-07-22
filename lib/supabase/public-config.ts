@@ -1,17 +1,23 @@
-import { z } from "zod";
+type PublicSupabaseConfig = {
+  url: string;
+  anonKey: string;
+};
 
-const publicConfigSchema = z.object({
-  url: z.url().startsWith("https://"),
-  anonKey: z.string().min(1),
-});
-
-export type PublicSupabaseConfig = z.infer<typeof publicConfigSchema>;
+function clean(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
 
 export function getPublicSupabaseConfig(): PublicSupabaseConfig | null {
-  const result = publicConfigSchema.safeParse({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  });
+  const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-  return result.success ? result.data : null;
+  if (!url || !anonKey) return null;
+
+  try {
+    new URL(url);
+  } catch {
+    return null;
+  }
+
+  return { url, anonKey };
 }

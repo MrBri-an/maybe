@@ -9,14 +9,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
-const clueSchema = z.object({
-  beginning: z.string().trim().max(40),
-  notification: z.string().trim().max(60),
-  person: z.string().trim().max(40),
-});
+const clueSchema = z.string().trim().max(40);
 
 function normalizeAnswer(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 export async function requestMagicLink(formData: FormData) {
@@ -24,18 +20,18 @@ export async function requestMagicLink(formData: FormData) {
   const emailResult = emailSchema.safeParse(formData.get("email"));
 
   if (!config) {
-    redirect("/access?error=configuration");
+    redirect("/?error=configuration");
   }
 
   if (!emailResult.success) {
-    redirect("/access?error=email");
+    redirect("/?error=email");
   }
 
   const admin = createAdminSupabaseClient();
   const supabase = await createServerSupabaseClient();
 
   if (!admin || !supabase) {
-    redirect("/access?error=configuration");
+    redirect("/?error=configuration");
   }
 
   const { data: member } = await admin
@@ -56,45 +52,37 @@ export async function requestMagicLink(formData: FormData) {
   }
 
   // The same response is used for approved and unapproved addresses.
-  redirect("/access?sent=1");
+  redirect("/?sent=1");
 }
 
 export async function submitPuzzle(formData: FormData) {
   const access = await getAuthenticatedAccess();
 
   if (!access.ok) {
-    redirect(access.reason === "configuration" ? "/access?error=configuration" : "/access?error=denied");
+    redirect(access.reason === "configuration" ? "/?error=configuration" : "/?error=denied");
   }
 
   const attempts = await getPuzzleAttemptState(access.user.id);
 
   if (attempts.limited) {
-    redirect("/access?step=puzzle&error=wait");
+    redirect("/?error=wait");
   }
 
-  const result = clueSchema.safeParse({
-    beginning: formData.get("beginning"),
-    notification: formData.get("notification"),
-    person: formData.get("person"),
-  });
-
-  const correct = result.success
-    && ["snapchat", "snap chat"].includes(normalizeAnswer(result.data.beginning))
-    && ["screenshot", "screenshot notification", "the screenshot", "a screenshot"].includes(normalizeAnswer(result.data.notification))
-    && normalizeAnswer(result.data.person) === "jessica";
+  const result = clueSchema.safeParse(formData.get("answer"));
+  const correct = result.success && normalizeAnswer(result.data) === "snapchat";
 
   if (!correct) {
     await recordPuzzleFailure(access.user.id, attempts.count);
-    redirect("/access?step=puzzle&error=clues");
+    redirect("/?error=clue");
   }
 
   const gateSet = await markExperienceGatePassed(access.user.id);
 
   if (!gateSet) {
-    redirect("/access?step=puzzle&error=configuration");
+    redirect("/?error=configuration");
   }
 
-  redirect("/world");
+  redirect("/");
 }
 
 export async function logout() {
@@ -105,5 +93,5 @@ export async function logout() {
   }
 
   await clearExperienceCookies();
-  redirect("/access");
+  redirect("/");
 }
