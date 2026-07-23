@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ function Globe({ selected, onSelect, reduceMotion }: { selected: number; onSelec
         </svg>
         <div className="globe-heart" aria-hidden="true"><span>✦</span><small>Maybe</small></div>
         {rooms.map((room, index) => (
-          <button key={room.name} type="button" className="globe-node" style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={`${room.name}, locked, coming later`} onClick={() => onSelect(index)}>
+          <button key={room.name} type="button" className="globe-node" style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={index === 0 ? `${room.name}, unlocked` : `${room.name}, locked, coming later`} onClick={() => onSelect(index)} disabled={index !== 0}>
             <span aria-hidden="true" />
             <strong className={index % 2 === 0 ? "node-label-right" : "node-label-left"}>{room.name}</strong>
           </button>
@@ -149,7 +150,7 @@ export function WorldExperience({ logoutAction }: WorldExperienceProps) {
               <Button type="button" variant="quiet" size="small" onClick={returnToStory}>Back to story</Button>
             </header>
             <Globe selected={selectedRoom} onSelect={setSelectedRoom} reduceMotion={reduceMotion} />
-            <aside className="globe-detail" aria-live="polite"><div><Badge>Locked · Coming later</Badge><h2>{selected.name}</h2><p>{selected.note}</p></div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>
+            <aside className="globe-detail" aria-live="polite"><div><Badge tone={selectedRoom === 0 ? "gold" : "neutral"}>{selectedRoom === 0 ? "Unlocked" : "Locked · Coming later"}</Badge><h2>{selected.name}</h2><p>{selected.note}</p>{selectedRoom === 0 ? <Link className="button button-primary button-small globe-enter-story" href="/story">Enter Storybook</Link> : null}</div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>
           </motion.main>
         )}
       </AnimatePresence>
