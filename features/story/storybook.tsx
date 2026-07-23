@@ -3,9 +3,25 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { completeStorybook, recordStorybookLocation, saveStorybookPage } from "@/app/story/actions";
+import { CelestialBackground } from "@/components/motion/celestial-background";
+import { RoomCompletionPanel } from "@/features/progression/room-completion-panel";
 
 const STORAGE_KEY = "maybe-storybook-page";
 const SOUND_STORAGE_KEY = "maybe-storybook-sound";
+type StorybookPageCache = { page: number; updatedAt: string };
+
+function readPageCache(value: string | null): StorybookPageCache | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<StorybookPageCache>;
+    return Number.isInteger(parsed.page) && Number(parsed.page) >= 1 && Number(parsed.page) <= 30 && typeof parsed.updatedAt === "string" && Number.isFinite(Date.parse(parsed.updatedAt))
+      ? { page: Number(parsed.page), updatedAt: parsed.updatedAt }
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 type StoryPage = {
   title: string;
@@ -79,13 +95,15 @@ function PageFace({ index, faceClass = "" }: { index: number; faceClass?: string
   );
 }
 
-export function Storybook() {
+export function Storybook({ initialCompleted = false, initialPage = 1, initialPageUpdatedAt = null }: { initialCompleted?: boolean; initialPage?: number; initialPageUpdatedAt?: string | null }) {
   const reduceMotion = Boolean(useReducedMotion());
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(clampPage(initialPage - 1));
   const [desktopSpread, setDesktopSpread] = useState(false);
   const [contentsOpen, setContentsOpen] = useState(false);
   const [flip, setFlip] = useState<Flip | null>(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [completed, setCompleted] = useState(initialCompleted);
+  const [settlePulse, setSettlePulse] = useState(0);
   const flipping = useRef(false);
   const flipSequence = useRef(0);
   const flipFallback = useRef<number | null>(null);
@@ -93,6 +111,51 @@ export function Storybook() {
   const audioContext = useRef<AudioContext | null>(null);
   const activeSound = useRef<Set<AudioScheduledSourceNode>>(new Set());
   const soundOnRef = useRef(true);
+  const pageVersionRef = useRef<string | null>(initialPageUpdatedAt);
+  const pendingPageSave = useRef<StorybookPageCache | null>(null);
+  const pageSaveActive = useRef(false);
+  const pageRetryTimer = useRef<number | null>(null);
+  const [pageSaveNotice, setPageSaveNotice] = useState<string | null>(null);
+  const [pageRetryTick, setPageRetryTick] = useState(0);
+
+  const persistLatestPage = useCallback(async () => {
+    if (pageSaveActive.current || !pendingPageSave.current) return;
+    pageSaveActive.current = true;
+    const saving = pendingPageSave.current;
+    pendingPageSave.current = null;
+    let retryDelay = 5000;
+    try {
+      const result = await saveStorybookPage(saving.page, pageVersionRef.current);
+      if (result.ok) {
+        retryDelay = 0;
+        pageVersionRef.current = result.progress.storybook_page_updated_at;
+        const cache = { page: result.progress.storybook_page, updatedAt: result.progress.storybook_page_updated_at ?? new Date().toISOString() };
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+        setPageSaveNotice(null);
+      } else if (result.error === "conflict" && result.progress) {
+        retryDelay = 0;
+        pageVersionRef.current = result.progress.storybook_page_updated_at;
+        setPageSaveNotice("Reading progress changed on another device. Your next page turn will save from the latest version.");
+      } else {
+        pendingPageSave.current = pendingPageSave.current ?? saving;
+        setPageSaveNotice("Reading progress will retry when the connection is available.");
+      }
+    } catch {
+      pendingPageSave.current = pendingPageSave.current ?? saving;
+      setPageSaveNotice("Reading progress will retry when the connection is available.");
+    } finally {
+      pageSaveActive.current = false;
+      if (pendingPageSave.current) {
+        pageRetryTimer.current = window.setTimeout(() => setPageRetryTick((current) => current + 1), retryDelay);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pageRetryTick === 0) return;
+    const frame = window.requestAnimationFrame(() => void persistLatestPage());
+    return () => window.cancelAnimationFrame(frame);
+  }, [pageRetryTick, persistLatestPage]);
 
   const stopPageSound = useCallback(() => {
     activeSound.current.forEach((source) => {
@@ -173,10 +236,17 @@ export function Storybook() {
     const updateMode = () => setDesktopSpread(query.matches);
     updateMode();
     query.addEventListener("change", updateMode);
-    const saved = Number.parseInt(window.localStorage.getItem(STORAGE_KEY) ?? "", 10);
+    const saved = readPageCache(window.localStorage.getItem(STORAGE_KEY));
     const savedSound = window.localStorage.getItem(SOUND_STORAGE_KEY);
     const resumeFrame = window.requestAnimationFrame(() => {
-      if (Number.isFinite(saved)) setPage(clampPage(saved));
+      const serverUpdatedAt = initialPageUpdatedAt ? Date.parse(initialPageUpdatedAt) : 0;
+      if (saved && Date.parse(saved.updatedAt) > serverUpdatedAt) {
+        setPage(saved.page - 1);
+        pendingPageSave.current = saved;
+        void persistLatestPage();
+      } else if (!saved || serverUpdatedAt >= Date.parse(saved.updatedAt)) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ page: initialPage, updatedAt: initialPageUpdatedAt ?? new Date().toISOString() }));
+      }
       if (savedSound === "muted") {
         soundOnRef.current = false;
         setSoundOn(false);
@@ -186,10 +256,12 @@ export function Storybook() {
       query.removeEventListener("change", updateMode);
       window.cancelAnimationFrame(resumeFrame);
     };
-  }, []);
+    void recordStorybookLocation();
+  }, [initialPage, initialPageUpdatedAt, persistLatestPage]);
 
   useEffect(() => () => {
     if (flipFallback.current !== null) window.clearTimeout(flipFallback.current);
+    if (pageRetryTimer.current !== null) window.clearTimeout(pageRetryTimer.current);
     flipSequence.current += 1;
     flipping.current = false;
     stopPageSound();
@@ -199,8 +271,13 @@ export function Storybook() {
   }, [stopPageSound]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, String(page));
-  }, [page]);
+    if (settlePulse === 0) return;
+    const cache = { page: page + 1, updatedAt: new Date().toISOString() };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    pendingPageSave.current = cache;
+    const frame = window.requestAnimationFrame(() => void persistLatestPage());
+    return () => window.cancelAnimationFrame(frame);
+  }, [page, persistLatestPage, settlePulse]);
 
   const releaseFlip = useCallback((id: number) => {
     if (!flipping.current || id !== flipSequence.current) return;
@@ -209,6 +286,7 @@ export function Storybook() {
       flipFallback.current = null;
     }
     flipping.current = false;
+    setSettlePulse((current) => current + 1);
     setFlip((activeFlip) => activeFlip?.id === id ? null : activeFlip);
   }, []);
 
@@ -236,7 +314,15 @@ export function Storybook() {
     setContentsOpen(false);
     playPageSound(normalizedTarget > currentSpread[0] ? 1 : -1, jump);
     flipFallback.current = window.setTimeout(() => releaseFlip(id), jump ? 1000 : 1700);
-  }, [desktopSpread, page, playPageSound, releaseFlip]);
+    if (!completed && targetSpread.includes(storyPages.length - 1)) {
+      void completeStorybook().then((result) => {
+        if (result.ok) {
+          setCompleted(true);
+          if (result.progress?.storybook_page_updated_at) pageVersionRef.current = result.progress.storybook_page_updated_at;
+        }
+      });
+    }
+  }, [completed, desktopSpread, page, playPageSound, releaseFlip]);
 
   const visiblePages = spreadFor(page, desktopSpread);
   const firstVisible = visiblePages[0];
@@ -279,8 +365,9 @@ export function Storybook() {
 
   return (
     <main className="storybook-shell">
+      <CelestialBackground room="storybook" moonProgress={.38} />
       <header className="storybook-toolbar">
-        <Link className="storybook-world-link" href="/">← Back to world</Link>
+        <Link className="storybook-world-link" href="/?view=world">← Back to world</Link>
         <button type="button" className="storybook-contents-button" onClick={() => setContentsOpen(true)} disabled={Boolean(flip)}>Table of contents</button>
         <button
           type="button"
@@ -298,7 +385,9 @@ export function Storybook() {
         </button>
         <span>{firstVisible + 1}–{lastVisible + 1} of {storyPages.length}</span>
       </header>
+      {completed ? <div className="storybook-skip-row"><Link href="/library" prefetch aria-label="Skip to Library. You have already completed this story. Continue directly to the next world.">Skip to Library</Link></div> : null}
       <div className="storybook-progress" aria-label={`${Math.round(progress)}% read`}><motion.span animate={{ width: `${progress}%` }} transition={{ duration: reduceMotion ? 0 : .45 }} /></div>
+      {pageSaveNotice ? <p className="storybook-save-notice" role="status">{pageSaveNotice}</p> : null}
       <section
         className="storybook-stage"
         aria-label="Storybook"
@@ -313,6 +402,7 @@ export function Storybook() {
         }}
       >
         <div className={`storybook-book ${desktopSpread ? "is-spread" : "is-single"} ${flip ? "is-flipping" : ""}`} style={depthStyle}>
+          {settlePulse > 0 ? <motion.div key={settlePulse} className="storybook-settle-glow" initial={{ opacity: 0 }} animate={{ opacity: [0, .36, 0] }} transition={{ duration: reduceMotion ? .12 : .75 }} aria-hidden="true" /> : null}
           <div className="storybook-cover" aria-hidden="true" />
           <div className="storybook-page-stack storybook-page-stack-left" aria-hidden="true" />
           <div className="storybook-page-stack storybook-page-stack-right" aria-hidden="true" />
@@ -370,6 +460,7 @@ export function Storybook() {
         <p>{desktopSpread ? "Use arrow keys or controls to turn the spread." : "Swipe, use arrow keys, or tap the controls."}</p>
         <button type="button" onClick={next} disabled={lastVisible === storyPages.length - 1 || Boolean(flip)} aria-disabled={lastVisible === storyPages.length - 1 || Boolean(flip)} aria-busy={Boolean(flip)}>Next</button>
       </nav>
+      {completed && lastVisible === storyPages.length - 1 ? <RoomCompletionPanel title="The first chapter is complete" message="The Library is now open. You can visit it now, return to the world, or come back to this story whenever you like." primary={<Link href="/library">Continue to Library</Link>} /> : null}
       <AnimatePresence>
         {contentsOpen ? (
           <motion.div className="storybook-contents-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setContentsOpen(false)}>

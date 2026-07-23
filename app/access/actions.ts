@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { clearExperienceCookies, getPuzzleAttemptState, markExperienceGatePassed, recordPuzzleFailure } from "@/lib/auth/experience-gate";
 import { getAuthenticatedAccess } from "@/lib/auth/membership";
+import { clearRoomProgress } from "@/lib/auth/room-progress";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
@@ -82,7 +83,7 @@ export async function submitPuzzle(formData: FormData) {
     redirect("/?error=configuration");
   }
 
-  redirect("/");
+  redirect("/auth/resume");
 }
 
 export async function logout() {
@@ -93,5 +94,6 @@ export async function logout() {
   }
 
   await clearExperienceCookies();
+  await clearRoomProgress();
   redirect("/");
 }

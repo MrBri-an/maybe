@@ -8,6 +8,7 @@ import { CelestialBackground } from "@/components/motion/celestial-background";
 import { WorldExperience } from "@/features/world/world-experience";
 import { hasPassedExperienceGate } from "@/lib/auth/experience-gate";
 import { getAuthenticatedAccess } from "@/lib/auth/membership";
+import { loadUserJourneyProgress } from "@/lib/progression/user-progress";
 import { getMissingServerConfigVariables, getServerSupabaseConfig } from "@/lib/supabase/server-config";
 import { logout, requestMagicLink, submitPuzzle } from "./access/actions";
 
@@ -130,7 +131,10 @@ export default async function Home({ searchParams }: HomeProps) {
   const access = await getAuthenticatedAccess();
 
   if (access.ok) {
-    if (await hasPassedExperienceGate(access.user.id)) return <WorldExperience logoutAction={logout} />;
+    if (await hasPassedExperienceGate(access.user.id)) {
+      const journey = await loadUserJourneyProgress();
+      return <WorldExperience logoutAction={logout} initialView={getParam(params.view) === "world" ? "world" : "opening"} storybookCompleted={Boolean(journey?.progress.storybook_completed_at)} libraryCompleted={Boolean(journey?.progress.library_completed_at)} initialDestination={journey?.progress.last_world_destination ?? null} />;
+    }
     return <PuzzleState error={error} />;
   }
 
