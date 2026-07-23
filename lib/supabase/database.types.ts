@@ -88,6 +88,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      radio_tracks: {
+        Row: {
+          id: string;
+          uploader_user_id: string;
+          title: string;
+          artist: string | null;
+          personal_note: string | null;
+          original_filename: string;
+          storage_path: string;
+          mime_type: string;
+          file_extension: "mp3" | "m4a" | "aac" | "wav" | "ogg";
+          size_bytes: number;
+          duration_seconds: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          uploader_user_id: string;
+          title: string;
+          artist?: string | null;
+          personal_note?: string | null;
+          original_filename: string;
+          storage_path: string;
+          mime_type: string;
+          file_extension: "mp3" | "m4a" | "aac" | "wav" | "ogg";
+          size_bytes: number;
+          duration_seconds?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          artist?: string | null;
+          personal_note?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -108,7 +147,8 @@ export type Database = {
           puzzle_kculture_attempt_state: Json | null;
           puzzle_kculture_attempt_updated_at: string | null;
           puzzle_room_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room";
+          radio_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio";
           last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
@@ -132,7 +172,8 @@ export type Database = {
           puzzle_kculture_attempt_state?: Json | null;
           puzzle_kculture_attempt_updated_at?: string | null;
           puzzle_room_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room";
+          radio_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
@@ -155,7 +196,8 @@ export type Database = {
           puzzle_kculture_attempt_state?: Json | null;
           puzzle_kculture_attempt_updated_at?: string | null;
           puzzle_room_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room";
+          radio_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };
@@ -171,4 +213,5 @@ export type Database = {
 
 export type AppMember = Database["public"]["Tables"]["app_members"]["Row"];
 export type LibraryBook = Database["public"]["Tables"]["library_books"]["Row"];
+export type RadioTrack = Database["public"]["Tables"]["radio_tracks"]["Row"];
 export type UserJourneyProgress = Database["public"]["Tables"]["user_journey_progress"]["Row"];

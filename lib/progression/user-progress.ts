@@ -12,11 +12,11 @@ import { getQuestionBank, type QuizId } from "@/features/puzzles/quiz/question-b
 import { attemptAsJson, type SavedQuizAttempt, type VerifiedQuizResult } from "@/features/puzzles/quiz/contracts";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 
-export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room";
+export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio";
 export type PuzzleId = "millionaire" | "kculture" | "constellation";
 export const worldDestinationSchema = z.enum(JOURNEY_ROOM_SLUGS);
 const pageSchema = z.number().int().min(1).max(30);
-const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room"]);
+const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio"]);
 const puzzleSchema = z.enum(["millionaire", "kculture", "constellation"]);
 
 async function authorizeProgress() {
@@ -301,6 +301,27 @@ export async function persistPuzzleRoomCompletion() {
   return data ? { ok: true as const, progress: data } : { ok: false as const };
 }
 
+export async function loadAuthorizedRadioProgress() {
+  const loaded = await loadUserJourneyProgress();
+  return loaded?.progress.storybook_completed_at
+    && loaded.progress.library_completed_at
+    && loaded.progress.puzzle_room_completed_at ? loaded : null;
+}
+
+export async function persistRadioCompletion() {
+  const loaded = await loadAuthorizedRadioProgress();
+  if (!loaded) return { ok: false as const };
+  const authorized = await authorizeProgress();
+  if (!authorized) return { ok: false as const };
+  const completedAt = loaded.progress.radio_completed_at ?? new Date().toISOString();
+  const { data } = await authorized.admin.from("user_journey_progress").update({
+    radio_completed_at: completedAt,
+    last_location: "world",
+    last_world_destination: "jessicas-radio",
+  }).eq("user_id", authorized.access.user.id).select("*").single();
+  return data ? { ok: true as const, progress: data } : { ok: false as const };
+}
+
 export async function saveSafeLocation(location: SafeLocation) {
   const parsed = locationSchema.safeParse(location);
   if (!parsed.success) return false;
@@ -310,6 +331,7 @@ export async function saveSafeLocation(location: SafeLocation) {
   if (!loaded) return false;
   if (parsed.data === "library" && !loaded.progress.storybook_completed_at) return false;
   if (parsed.data === "puzzle_room" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at)) return false;
+  if (parsed.data === "radio" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at)) return false;
   const { error } = await authorized.admin.from("user_journey_progress").update({ last_location: parsed.data }).eq("user_id", authorized.access.user.id);
   return !error;
 }
@@ -340,5 +362,6 @@ export function deriveResumeDestination(progress: UserJourneyProgress, firstProg
   if (progress.last_location === "storybook") return "/story";
   if (progress.last_location === "library" && progress.storybook_completed_at) return "/library";
   if (progress.last_location === "puzzle_room" && progress.storybook_completed_at && progress.library_completed_at) return "/puzzles";
+  if (progress.last_location === "radio" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at) return "/radio";
   return "/?view=world";
 }

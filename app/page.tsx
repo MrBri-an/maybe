@@ -133,7 +133,7 @@ export default async function Home({ searchParams }: HomeProps) {
   if (access.ok) {
     if (await hasPassedExperienceGate(access.user.id)) {
       const journey = await loadUserJourneyProgress();
-      return <WorldExperience logoutAction={logout} initialView={getParam(params.view) === "world" ? "world" : "opening"} storybookCompleted={Boolean(journey?.progress.storybook_completed_at)} libraryCompleted={Boolean(journey?.progress.library_completed_at)} puzzleRoomCompleted={Boolean(journey?.progress.puzzle_room_completed_at)} initialDestination={journey?.progress.last_world_destination ?? null} />;
+      return <WorldExperience logoutAction={logout} initialView={getParam(params.view) === "world" ? "world" : "opening"} storybookCompleted={Boolean(journey?.progress.storybook_completed_at)} libraryCompleted={Boolean(journey?.progress.library_completed_at)} puzzleRoomCompleted={Boolean(journey?.progress.puzzle_room_completed_at)} radioCompleted={Boolean(journey?.progress.radio_completed_at)} initialDestination={journey?.progress.last_world_destination ?? null} />;
     }
     return <PuzzleState error={error} />;
   }

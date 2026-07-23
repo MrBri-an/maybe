@@ -23,7 +23,7 @@ const scenes = [
 
 const rooms = JOURNEY_ROOMS;
 
-type WorldExperienceProps = { logoutAction: () => Promise<void>; initialView?: "opening" | "world"; storybookCompleted?: boolean; libraryCompleted?: boolean; puzzleRoomCompleted?: boolean; initialDestination?: string | null };
+type WorldExperienceProps = { logoutAction: () => Promise<void>; initialView?: "opening" | "world"; storybookCompleted?: boolean; libraryCompleted?: boolean; puzzleRoomCompleted?: boolean; radioCompleted?: boolean; initialDestination?: string | null };
 type SceneVisual = (typeof scenes)[number]["visual"];
 
 function StoryVisual({ kind, paused }: { kind: SceneVisual; paused: boolean }) {
@@ -41,7 +41,7 @@ function StoryVisual({ kind, paused }: { kind: SceneVisual; paused: boolean }) {
   );
 }
 
-function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCompleted, puzzleRoomCompleted }: { selected: number; onSelect: (index: number) => void; reduceMotion: boolean; storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean }) {
+function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted }: { selected: number; onSelect: (index: number) => void; reduceMotion: boolean; storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean }) {
   const router = useRouter();
   const [interacting, setInteracting] = useState(false);
   const path = rooms.map((room) => `${room.x},${room.y}`).join(" ");
@@ -63,7 +63,7 @@ function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCo
         </svg>
         <div className="globe-heart" aria-hidden="true"><span>✦</span><small>Maybe</small></div>
         {rooms.map((room, index) => (
-          <button key={room.name} type="button" className={`globe-node ${((index === 0 && storybookCompleted) || (index === 1 && libraryCompleted) || (index === 2 && puzzleRoomCompleted)) ? "is-completed" : ""} ${((index === 0 && !storybookCompleted) || (index === 1 && storybookCompleted && !libraryCompleted) || (index === 2 && libraryCompleted && !puzzleRoomCompleted)) ? "is-current-destination" : ""} ${index === 3 && puzzleRoomCompleted ? "is-next-locked" : ""}`} style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={index === 0 ? storybookCompleted ? "Storybook, completed and available" : "Storybook, current destination" : index === 1 ? libraryCompleted ? "Library, completed and available" : storybookCompleted ? "Library, current destination and available" : "Library, locked. Complete the Storybook to open this quiet reading room." : index === 2 ? puzzleRoomCompleted ? "Puzzle Room, completed and available" : libraryCompleted ? "Puzzle Room, current destination and available" : "Puzzle Room, locked until the journey continues" : index === 3 && puzzleRoomCompleted ? "Jessica’s Radio, next destination, coming later" : `${room.name}, coming later. This destination will open later as the world continues to grow.`} onClick={() => onSelect(index)} onPointerEnter={() => { if (index === 0) router.prefetch("/story"); if (index === 1 && storybookCompleted) router.prefetch("/library"); if (index === 2 && libraryCompleted) router.prefetch("/puzzles"); }} onPointerDown={() => { if (index === 0) router.prefetch("/story"); if (index === 1 && storybookCompleted) router.prefetch("/library"); if (index === 2 && libraryCompleted) router.prefetch("/puzzles"); }} disabled={index > 2 || (index === 1 && !storybookCompleted) || (index === 2 && !libraryCompleted)}>
+          <button key={room.name} type="button" className={`globe-node ${((index === 0 && storybookCompleted) || (index === 1 && libraryCompleted) || (index === 2 && puzzleRoomCompleted) || (index === 3 && radioCompleted)) ? "is-completed" : ""} ${((index === 0 && !storybookCompleted) || (index === 1 && storybookCompleted && !libraryCompleted) || (index === 2 && libraryCompleted && !puzzleRoomCompleted) || (index === 3 && puzzleRoomCompleted && !radioCompleted)) ? "is-current-destination" : ""} ${index === 4 && radioCompleted ? "is-next-locked" : ""}`} style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={index === 0 ? storybookCompleted ? "Storybook, completed and available" : "Storybook, current destination" : index === 1 ? libraryCompleted ? "Library, completed and available" : storybookCompleted ? "Library, current destination and available" : "Library, locked." : index === 2 ? puzzleRoomCompleted ? "Puzzle Room, completed and available" : libraryCompleted ? "Puzzle Room, current destination and available" : "Puzzle Room, locked." : index === 3 ? radioCompleted ? "Jessica’s Radio, completed and available" : puzzleRoomCompleted ? "Jessica’s Radio, current destination and available" : "Jessica’s Radio, coming later" : index === 4 && radioCompleted ? "Question Garden, next destination, coming later" : `${room.name}, coming later.`} onClick={() => onSelect(index)} onPointerEnter={() => { if (index === 0) router.prefetch("/story"); if (index === 1 && storybookCompleted) router.prefetch("/library"); if (index === 2 && libraryCompleted) router.prefetch("/puzzles"); if (index === 3 && puzzleRoomCompleted) router.prefetch("/radio"); }} onPointerDown={() => { if (index === 3 && puzzleRoomCompleted) router.prefetch("/radio"); }} disabled={index > 3 || (index === 1 && !storybookCompleted) || (index === 2 && !libraryCompleted) || (index === 3 && !puzzleRoomCompleted)}>
             <span aria-hidden="true" />
             <strong className={index % 2 === 0 ? "node-label-right" : "node-label-left"}>{room.name}</strong>
           </button>
@@ -73,10 +73,10 @@ function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCo
   );
 }
 
-function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomCompleted }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean }) {
+function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
-  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted);
-  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted);
+  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted);
+  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted);
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setCollapsed(window.localStorage.getItem("maybe-world-guide-collapsed") === "1"));
     return () => window.cancelAnimationFrame(frame);
@@ -94,7 +94,7 @@ function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomComp
           <span className={`is-${states.storybook}`}><i>01</i><strong>Storybook</strong><small>{states.storybook === "completed" ? "Completed" : "Current"}</small></span><b aria-hidden="true">→</b>
           <span className={`is-${states.library}`}><i>02</i><strong>Library</strong><small>{states.library === "completed" ? "Completed" : states.library === "current" ? "Available" : "Locked"}</small></span><b className="is-soft" aria-hidden="true">→</b>
           <span className={`is-${states.puzzleRoom}`}><i>03</i><strong>Puzzle Room</strong><small>{states.puzzleRoom === "completed" ? "Completed" : states.puzzleRoom === "current" ? "Available" : states.puzzleRoom === "locked" ? "Locked" : "Coming later"}</small></span><b className="is-soft" aria-hidden="true">→</b>
-          <span className={`is-${states.radio}`}><i>04</i><strong>Jessica’s Radio</strong><small>{states.radio === "next" ? "Next destination" : "Coming later"}</small></span>
+          <span className={`is-${states.radio}`}><i>04</i><strong>Jessica’s Radio</strong><small>{states.radio === "completed" ? "Completed" : states.radio === "current" ? "Available" : "Coming later"}</small></span>
         </div>
         <p>The Storybook is the first destination. Reach its final page to unlock the Library. The other rooms will open later as their stories and experiences become ready.</p>
         <div className="world-guide-footer"><strong>{summary.message}{summary.completed > 0 ? ` · ${summary.completed} completed` : ""}</strong><ul aria-label="Progress state legend"><li><i className="available" />Available</li><li><i className="current" />Current</li><li><i className="completed" />Completed</li><li><i className="locked" />Locked</li><li><i className="later" />Coming later</li></ul></div>
@@ -103,7 +103,7 @@ function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomComp
   );
 }
 
-export function WorldExperience({ logoutAction, initialView = "opening", storybookCompleted = false, libraryCompleted = false, puzzleRoomCompleted = false, initialDestination = null }: WorldExperienceProps) {
+export function WorldExperience({ logoutAction, initialView = "opening", storybookCompleted = false, libraryCompleted = false, puzzleRoomCompleted = false, radioCompleted = false, initialDestination = null }: WorldExperienceProps) {
   const reduceMotion = Boolean(useReducedMotion());
   const router = useRouter();
   const [view, setView] = useState<"opening" | "world">(initialView);
@@ -111,8 +111,8 @@ export function WorldExperience({ logoutAction, initialView = "opening", storybo
   const [playing, setPlaying] = useState(!reduceMotion);
   const [selectedRoom, setSelectedRoom] = useState(() => {
     const savedIndex = rooms.findIndex((room) => room.slug === initialDestination);
-    if (savedIndex === 0 || (savedIndex === 1 && storybookCompleted) || (savedIndex === 2 && libraryCompleted) || (savedIndex === 3 && puzzleRoomCompleted)) return savedIndex;
-    return puzzleRoomCompleted ? 3 : libraryCompleted ? 2 : storybookCompleted ? 1 : 0;
+    if (savedIndex === 0 || (savedIndex === 1 && storybookCompleted) || (savedIndex === 2 && libraryCompleted) || (savedIndex === 3 && puzzleRoomCompleted) || (savedIndex === 4 && radioCompleted)) return savedIndex;
+    return radioCompleted ? 4 : puzzleRoomCompleted ? 3 : libraryCompleted ? 2 : storybookCompleted ? 1 : 0;
   });
   const scene = scenes[sceneIndex];
   const selected = rooms[selectedRoom];
@@ -132,7 +132,8 @@ export function WorldExperience({ logoutAction, initialView = "opening", storybo
     router.prefetch("/story");
     if (storybookCompleted) router.prefetch("/library");
     if (libraryCompleted) router.prefetch("/puzzles");
-  }, [libraryCompleted, router, storybookCompleted, view]);
+    if (puzzleRoomCompleted) router.prefetch("/radio");
+  }, [libraryCompleted, puzzleRoomCompleted, router, storybookCompleted, view]);
 
   const selectRoom = (index: number) => {
     setSelectedRoom(index);
@@ -191,11 +192,11 @@ export function WorldExperience({ logoutAction, initialView = "opening", storybo
               <h1>A world of what may come next.</h1>
               <p>{storybookCompleted ? "Storybook and Library are open. The other destinations remain gently locked." : "Begin with the Storybook. The other destinations remain gently locked."}</p>
               <Button type="button" variant="quiet" size="small" onClick={returnToStory}>Back to story</Button>
-              <JourneyProgressMenu storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} />
+              <JourneyProgressMenu storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} />
             </header>
-            <Globe selected={selectedRoom} onSelect={selectRoom} reduceMotion={reduceMotion} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} />
-            <aside className="globe-detail" aria-live="polite"><div><Badge tone={selectedRoom <= 2 && (selectedRoom !== 1 || storybookCompleted) && (selectedRoom !== 2 || libraryCompleted) ? "gold" : "neutral"}>{selectedRoom === 0 ? storybookCompleted ? "Completed" : "Available" : selectedRoom === 1 ? libraryCompleted ? "Completed" : storybookCompleted ? "Available" : "Locked" : selectedRoom === 2 ? puzzleRoomCompleted ? "Completed" : libraryCompleted ? "Available" : "Locked" : selectedRoom === 3 && puzzleRoomCompleted ? "Next destination" : "Coming later"}</Badge><h2>{selected.name}</h2><p>{selectedRoom === 0 ? storybookCompleted ? "The first story is complete. You can return whenever you like." : "Begin with the story of the screenshot that started everything." : selectedRoom === 1 ? libraryCompleted ? "This quiet reading room is open whenever you want to return." : storybookCompleted ? "A private reading room for books, stories and discoveries." : "Complete the Storybook to open this quiet reading room." : selectedRoom === 2 ? puzzleRoomCompleted ? "The clues remain here whenever you feel like returning." : libraryCompleted ? "A playful room of clues and small discoveries." : "Complete the Library journey to open this playful room." : selectedRoom === 3 && puzzleRoomCompleted ? "A listening room is being prepared. It will open when the next part of this world is ready." : "This destination will open later as the world continues to grow."}</p>{selectedRoom === 0 ? <Link className="button button-primary button-small globe-enter-story" href="/story" prefetch>{storybookCompleted ? "Open Storybook" : "Enter Storybook"}</Link> : null}{selectedRoom === 1 && storybookCompleted ? <Link className="button button-primary button-small globe-enter-story" href="/library" prefetch>{libraryCompleted ? "Visit Library" : "Enter Library"}</Link> : null}{selectedRoom === 2 && libraryCompleted ? <Link className="button button-primary button-small globe-enter-story" href="/puzzles" prefetch>{puzzleRoomCompleted ? "Visit Puzzle Room" : "Enter Puzzle Room"}</Link> : null}</div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>
-            <ProgressionGuide storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} />
+            <Globe selected={selectedRoom} onSelect={selectRoom} reduceMotion={reduceMotion} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} />
+            <aside className="globe-detail" aria-live="polite"><div><Badge tone={selectedRoom <= 3 && (selectedRoom !== 1 || storybookCompleted) && (selectedRoom !== 2 || libraryCompleted) && (selectedRoom !== 3 || puzzleRoomCompleted) ? "gold" : "neutral"}>{selectedRoom === 0 ? storybookCompleted ? "Completed" : "Available" : selectedRoom === 1 ? libraryCompleted ? "Completed" : storybookCompleted ? "Available" : "Locked" : selectedRoom === 2 ? puzzleRoomCompleted ? "Completed" : libraryCompleted ? "Available" : "Locked" : selectedRoom === 3 ? radioCompleted ? "Completed" : puzzleRoomCompleted ? "Available" : "Coming later" : selectedRoom === 4 && radioCompleted ? "Next destination" : "Coming later"}</Badge><h2>{selected.name}</h2><p>{selectedRoom === 0 ? storybookCompleted ? "The first story is complete. You can return whenever you like." : "Begin with the story of the screenshot that started everything." : selectedRoom === 1 ? libraryCompleted ? "This quiet reading room is open whenever you want to return." : storybookCompleted ? "A private reading room for books, stories and discoveries." : "Complete the Storybook to open this quiet reading room." : selectedRoom === 2 ? puzzleRoomCompleted ? "The clues remain here whenever you feel like returning." : libraryCompleted ? "A playful room of clues and small discoveries." : "Complete the Library journey to open this playful room." : selectedRoom === 3 ? radioCompleted ? "The music library remains open whenever you want to return." : puzzleRoomCompleted ? "A private shared music library for favourite songs and discoveries." : "This destination will open later as the world continues to grow." : selectedRoom === 4 && radioCompleted ? "A garden of questions and small discoveries is being prepared." : "This destination will open later as the world continues to grow."}</p>{selectedRoom === 0 ? <Link className="button button-primary button-small globe-enter-story" href="/story" prefetch>{storybookCompleted ? "Open Storybook" : "Enter Storybook"}</Link> : null}{selectedRoom === 1 && storybookCompleted ? <Link className="button button-primary button-small globe-enter-story" href="/library" prefetch>{libraryCompleted ? "Visit Library" : "Enter Library"}</Link> : null}{selectedRoom === 2 && libraryCompleted ? <Link className="button button-primary button-small globe-enter-story" href="/puzzles" prefetch>{puzzleRoomCompleted ? "Visit Puzzle Room" : "Enter Puzzle Room"}</Link> : null}{selectedRoom === 3 && puzzleRoomCompleted ? <Link className="button button-primary button-small globe-enter-story" href="/radio" prefetch>{radioCompleted ? "Visit Jessica’s Radio" : "Enter Jessica’s Radio"}</Link> : null}</div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>
+            <ProgressionGuide storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} />
           </motion.main>
         )}
       </AnimatePresence>
