@@ -18,18 +18,18 @@ export const JOURNEY_ROOM_SLUGS = JOURNEY_ROOMS.map((room) => room.slug) as [
   ...(typeof JOURNEY_ROOMS)[number]["slug"][],
 ];
 
-export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean) {
+export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false) {
   return {
     storybook: storybookCompleted ? "completed" : "current",
     library: libraryCompleted ? "completed" : storybookCompleted ? "current" : "locked",
-    puzzleRoom: libraryCompleted ? "next" : storybookCompleted ? "locked" : "later",
-    radio: "later",
+    puzzleRoom: puzzleRoomCompleted ? "completed" : libraryCompleted ? "current" : storybookCompleted ? "locked" : "later",
+    radio: puzzleRoomCompleted ? "next" : "later",
     future: "later",
   } satisfies Record<string, JourneyRoomState>;
 }
 
-export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean): JourneyRoomState {
-  const states = getJourneyStates(storybookCompleted, libraryCompleted);
+export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false): JourneyRoomState {
+  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted);
   if (slug === "storybook") return states.storybook;
   if (slug === "library") return states.library;
   if (slug === "puzzle-room") return states.puzzleRoom;
@@ -37,8 +37,9 @@ export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"]
   return states.future;
 }
 
-export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean) {
-  if (libraryCompleted) return { message: "The next destination is being prepared", completed: 2 };
+export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false) {
+  if (puzzleRoomCompleted) return { message: "The next destination is being prepared", completed: 3 };
+  if (libraryCompleted) return { message: "The Puzzle Room is ready to explore", completed: 2 };
   if (storybookCompleted) return { message: "The Library is ready to explore", completed: 1 };
   return { message: "Begin with the Storybook", completed: 0 };
 }

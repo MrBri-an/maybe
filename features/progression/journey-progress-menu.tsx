@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { JOURNEY_ROOMS, getJourneyRoomState, getJourneySummary, type JourneyRoomState } from "@/lib/progression/rooms";
 
-export function JourneyProgressMenu({ storybookCompleted, libraryCompleted }: { storybookCompleted: boolean; libraryCompleted: boolean }) {
+export function JourneyProgressMenu({ storybookCompleted, libraryCompleted, puzzleRoomCompleted = false }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted?: boolean }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const summary = getJourneySummary(storybookCompleted, libraryCompleted);
+  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted);
 
   useEffect(() => {
     if (!open) return;
@@ -32,15 +32,17 @@ export function JourneyProgressMenu({ storybookCompleted, libraryCompleted }: { 
         <header><strong>{summary.message}</strong>{summary.completed > 0 ? <span>{summary.completed} completed</span> : null}</header>
         <ol>
           {JOURNEY_ROOMS.map((room) => {
-            const state = getJourneyRoomState(room.slug, storybookCompleted, libraryCompleted);
+            const state = getJourneyRoomState(room.slug, storybookCompleted, libraryCompleted, puzzleRoomCompleted);
             const displayState = state === "current" ? "available" : state;
-            const href = room.slug === "storybook" ? "/story" : room.slug === "library" && storybookCompleted ? "/library" : undefined;
+            const href = room.slug === "storybook" ? "/story" : room.slug === "library" && storybookCompleted ? "/library" : room.slug === "puzzle-room" && libraryCompleted ? "/puzzles" : undefined;
             const description = room.slug === "storybook"
               ? "The story of the screenshot that started everything."
               : room.slug === "library"
                 ? "A private reading room for books, stories and quiet discoveries."
                 : room.slug === "puzzle-room" && libraryCompleted
-                  ? "A playful room of clues and small discoveries is being prepared."
+                  ? puzzleRoomCompleted ? "The clues remain here whenever you feel like returning." : "A playful room of clues and small discoveries."
+                  : room.slug === "jessicas-radio" && puzzleRoomCompleted
+                    ? "A listening room is being prepared. It will open when the next part of this world is ready."
                   : "This destination will open later as the world continues to grow.";
             return <JourneyEntry key={room.slug} title={room.name} state={displayState} description={description} href={href} />;
           })}
