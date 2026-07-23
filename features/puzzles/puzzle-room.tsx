@@ -2,8 +2,8 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { completePuzzleRoomJourney, markPuzzleCompleted, markPuzzleSkipped, recordPuzzleRoomLocation, startQuiz } from "@/app/puzzles/actions";
 import { CelestialBackground } from "@/components/motion/celestial-background";
 import { JourneyProgressMenu } from "@/features/progression/journey-progress-menu";
@@ -90,7 +90,7 @@ export function PuzzleRoom({ initialProgress, initialAttempts }: { initialProgre
     </div></section>
     {active === "millionaire" || active === "kculture" ? <QuizFrame id={active} attempt={attempts[active]!} best={bestScores[active]} close={() => setActive(null)} finish={() => { if (resultPersisted[active]) setAttempts((current) => ({ ...current, [active]: null })); setActive(null); }} skip={async () => { await saveState(active, "skipped"); setAttempts((current) => ({ ...current, [active]: null })); setActive(null); }} complete={(result) => completeQuiz(active, result)} retry={async () => { const fresh = await startQuiz(active); if (!fresh.ok) return null; setResultPersisted((current) => ({ ...current, [active]: null })); setAttempts((current) => ({ ...current, [active]: fresh.attempt })); return fresh.attempt; }} /> : null}
     {active === "constellation" ? <ConstellationPuzzle state={states.constellation} close={() => setActive(null)} save={saveState} reduceMotion={reduceMotion} /> : null}
-    <PuzzleJourneyPanel />
+    <PuzzleJourneyPanel alreadyCompleted={Boolean(initialProgress.puzzle_room_completed_at)} />
   </main>;
 }
 
@@ -127,8 +127,52 @@ function ConstellationPuzzle({ state, close, save, reduceMotion }: { state: Puzz
   return <PuzzleFrame title="Jessica in the Stars" objective="Connect the glowing stars in the correct order to reveal Jessica’s name." close={close}><div className={`constellation-puzzle ${complete ? "is-complete" : ""}`}><svg viewBox="0 0 100 55" aria-hidden="true">{connected.slice(1).map((point, index) => <motion.line key={point} x1={starPoints[index][0]} y1={starPoints[index][1]} x2={starPoints[point][0]} y2={starPoints[point][1]} initial={reduceMotion ? false : { pathLength: 0 }} animate={{ pathLength: 1 }} />)}</svg>{letters.map((letter, index) => <button key={index} type="button" style={{ left: `${starPoints[index][0]}%`, top: `${(starPoints[index][1] / 55) * 100}%` }} className={connected.includes(index) ? "is-connected" : ""} onClick={() => choose(index)} disabled={index !== connected.length} aria-label={`${letter}, point ${index + 1}`}>{letter}</button>)}</div><div className="constellation-order" aria-label="Keyboard constellation controls">{letters.map((letter, index) => <button key={index} type="button" onClick={() => choose(index)} disabled={index !== connected.length}>{index + 1}. {letter}</button>)}</div>{hint ? <p className="puzzle-hint">Follow the letters from left to right: J, E, S, S, I, C, A.</p> : null}<p className="puzzle-feedback" aria-live="polite">{complete ? "Jessica is written softly across the stars." : `${connected.length} of ${letters.length} stars connected.`}</p><div className="puzzle-actions"><button type="button" onClick={() => setConnected((current) => current.slice(0, -1))} disabled={connected.length === 0 || saving}>Undo last</button><button type="button" onClick={() => setConnected([])} disabled={saving}>Reset</button><button type="button" onClick={() => setHint(true)}>Hint</button><button type="button" disabled={saving} aria-busy={saving} onClick={async () => { if (saving) return; setSaving(true); await save("constellation", "skipped"); close(); }}>Skip for now</button></div></PuzzleFrame>;
 }
 
-function PuzzleJourneyPanel() {
-  const router = useRouter(); const lock = useRef(false); const [pending, startTransition] = useTransition(); const [error, setError] = useState<string | null>(null);
-  const continueJourney = () => { if (lock.current) return; lock.current = true; setError(null); startTransition(async () => { const result = await completePuzzleRoomJourney(); if (result.ok) { router.push("/?view=world"); router.refresh(); return; } lock.current = false; setError(result.error); }); };
-  return <RoomCompletionPanel title="Ready for the next discovery?" message="You can solve every puzzle, try only the ones that interest you, or return another time. Nothing here must be completed before the journey continues." primary={<button type="button" onClick={continueJourney} disabled={pending} aria-busy={pending}>{pending ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
+function PuzzleJourneyPanel({ alreadyCompleted }: { alreadyCompleted: boolean }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const lock = useRef(false);
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isContinuing, setIsContinuing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+      fallbackTimer.current = null;
+    };
+  }, [pathname]);
+
+  if (alreadyCompleted) {
+    return <RoomCompletionPanel title="The next destination is open" message="Puzzle Room is complete. Jessica’s Radio is ready whenever you want to continue." primary={<Link href="/radio" prefetch>Continue the journey</Link>} />;
+  }
+
+  const continueJourney = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    setIsContinuing(true);
+    setError(null);
+
+    try {
+      const result = await completePuzzleRoomJourney();
+      if (result.ok) {
+        setError(null);
+        router.replace("/radio");
+        fallbackTimer.current = setTimeout(() => {
+          if (window.location.pathname === "/puzzles") {
+            window.location.assign("/radio");
+          }
+        }, 1500);
+        return;
+      }
+      setError(result.error);
+    } catch {
+      setError("The next step could not be saved. Please try again.");
+    } finally {
+      if (!fallbackTimer.current) {
+        setIsContinuing(false);
+        lock.current = false;
+      }
+    }
+  };
+  return <RoomCompletionPanel title="Ready for the next discovery?" message="You can solve every puzzle, try only the ones that interest you, or return another time. Nothing here must be completed before the journey continues." primary={<button type="button" onClick={() => void continueJourney()} disabled={isContinuing} aria-busy={isContinuing}>{isContinuing ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
 }

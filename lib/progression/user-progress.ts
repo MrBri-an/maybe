@@ -14,6 +14,9 @@ import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 
 export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio";
 export type PuzzleId = "millionaire" | "kculture" | "constellation";
+export type PuzzleRoomCompletionResult =
+  | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
+  | { ok: false; reason: "unauthorized" | "missing_prerequisite" | "completion_write_failed" };
 export const worldDestinationSchema = z.enum(JOURNEY_ROOM_SLUGS);
 const pageSchema = z.number().int().min(1).max(30);
 const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio"]);
@@ -287,18 +290,64 @@ export async function persistVerifiedQuizResult(reference: string): Promise<{ ok
   return { ok: true, bestScore: payload.quizId === "millionaire" ? data.puzzle_millionaire_best_score : data.puzzle_kculture_best_score };
 }
 
-export async function persistPuzzleRoomCompletion() {
-  const loaded = await loadAuthorizedPuzzleProgress();
-  if (!loaded) return { ok: false as const };
+export async function persistPuzzleRoomCompletion(): Promise<PuzzleRoomCompletionResult> {
   const authorized = await authorizeProgress();
-  if (!authorized) return { ok: false as const };
-  const completedAt = loaded.progress.puzzle_room_completed_at ?? new Date().toISOString();
-  const { data } = await authorized.admin.from("user_journey_progress").update({
-    puzzle_room_completed_at: completedAt,
+  if (!authorized) return { ok: false, reason: "unauthorized" };
+  const loaded = await loadOrCreateAuthorizedProgress(authorized);
+  if (!loaded) return { ok: false, reason: "completion_write_failed" };
+  if (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at) {
+    return { ok: false, reason: "missing_prerequisite" };
+  }
+  if (loaded.progress.puzzle_room_completed_at) {
+    return { ok: true, alreadyCompleted: true, navigationMetadataSaved: false };
+  }
+
+  const { data: completed, error: completionError } = await authorized.admin
+    .from("user_journey_progress")
+    .update({ puzzle_room_completed_at: new Date().toISOString() })
+    .eq("user_id", authorized.access.user.id)
+    .is("puzzle_room_completed_at", null)
+    .select("*")
+    .maybeSingle();
+  if (completionError) {
+    console.error("Puzzle room completion operation failed", {
+      operation: "persist_completion",
+      code: completionError.code,
+      alreadyCompleted: false,
+    });
+    return { ok: false, reason: "completion_write_failed" };
+  }
+  if (!completed || completed.user_id !== authorized.access.user.id) {
+    const { data: current, error: reloadError } = await authorized.admin
+      .from("user_journey_progress")
+      .select("puzzle_room_completed_at")
+      .eq("user_id", authorized.access.user.id)
+      .maybeSingle();
+    if (reloadError) {
+      console.error("Puzzle room completion operation failed", {
+        operation: "confirm_completion",
+        code: reloadError.code,
+        alreadyCompleted: false,
+      });
+    }
+    if (current?.puzzle_room_completed_at) {
+      return { ok: true, alreadyCompleted: true, navigationMetadataSaved: false };
+    }
+    return { ok: false, reason: "completion_write_failed" };
+  }
+
+  const { error: navigationError } = await authorized.admin.from("user_journey_progress").update({
     last_location: "world",
     last_world_destination: "puzzle-room",
-  }).eq("user_id", authorized.access.user.id).select("*").single();
-  return data ? { ok: true as const, progress: data } : { ok: false as const };
+  }).eq("user_id", authorized.access.user.id);
+  if (navigationError) {
+    console.error("Puzzle room completion operation failed", {
+      operation: "save_navigation_metadata",
+      code: navigationError.code,
+      alreadyCompleted: false,
+    });
+  }
+  return { ok: true, alreadyCompleted: false, navigationMetadataSaved: !navigationError };
 }
 
 export async function loadAuthorizedRadioProgress() {

@@ -56,7 +56,15 @@ export async function markPuzzleSkipped(puzzle: PuzzleId) {
 
 export async function completePuzzleRoomJourney() {
   const result = await persistPuzzleRoomCompletion();
-  return result.ok ? { ok: true as const } : { ok: false as const, error: "The next step could not be saved. Please try again." };
+  if (result.ok) return result;
+  return {
+    ...result,
+    error: result.reason === "unauthorized"
+      ? "Please sign in with an approved account to continue."
+      : result.reason === "missing_prerequisite"
+        ? "Complete the earlier journey rooms before continuing."
+        : "The next step could not be saved. Please try again.",
+  };
 }
 
 export async function recordPuzzleRoomLocation() {
