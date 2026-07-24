@@ -1,5 +1,6 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { hasPassedExperienceGate } from "@/lib/auth/experience-gate";
 import { verifyMembership } from "@/lib/auth/membership";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
@@ -12,6 +13,7 @@ const emailOtpTypes = new Set<EmailOtpType>([
   "signup",
   "email_change",
 ]);
+const POST_AUTH_INTRO_COOKIE = "maybe_post_auth_intro";
 
 function accessRedirect(request: NextRequest, params: Record<string, string>) {
   const target = new URL("/", request.url);
@@ -63,5 +65,16 @@ export async function GET(request: NextRequest) {
     return accessRedirect(request, { error: "denied" });
   }
 
-  return accessRedirect(request, { step: "puzzle" });
+  const gatePassed = await hasPassedExperienceGate(data.user.id);
+  const response = gatePassed
+    ? NextResponse.redirect(new URL("/auth/resume", request.url))
+    : accessRedirect(request, { step: "puzzle" });
+  response.cookies.set(POST_AUTH_INTRO_COOKIE, "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 10,
+  });
+  return response;
 }

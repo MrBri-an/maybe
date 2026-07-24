@@ -2563,7 +2563,8 @@ h3 {
 
 .journey-menu { position: relative; z-index: 20; width: fit-content; margin-top: var(--space-3); }
 .journey-menu > button { min-height: 2.75rem; padding: .55rem .9rem; border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: rgb(255 255 255 / 4%); color: var(--cream-100); font-size: .76rem; font-weight: 750; cursor: pointer; }
-.journey-menu-popover { position: absolute; z-index: 30; top: calc(100% + .5rem); left: 0; width: min(24rem, calc(100vw - 2rem)); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-large); background: rgb(12 14 29 / 96%); box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 48%); backdrop-filter: blur(.8rem); }
+.journey-menu-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; overflow: hidden auto; place-items: start center; padding: max(4rem, calc(env(safe-area-inset-top) + 1rem)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: rgb(3 5 14 / 78%); backdrop-filter: blur(.35rem); }
+.journey-menu-popover { position: relative; width: min(28rem, 100%); max-height: calc(100svh - max(5rem, calc(env(safe-area-inset-top) + 2rem)) - max(1rem, env(safe-area-inset-bottom))); overflow: hidden auto; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-large); outline: none; background: rgb(12 14 29 / 98%); box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 65%); }
 .journey-menu-popover header { display: flex; gap: .5rem; align-items: center; justify-content: space-between; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); }.journey-menu-popover header strong { font-family: Georgia, serif; font-size: 1rem; }.journey-menu-popover header span { color: var(--gold-300); font-size: .65rem; white-space: nowrap; }
 .journey-menu-popover ol { display: grid; gap: .35rem; margin: var(--space-3) 0 0; padding: 0; list-style: none; }.journey-menu-popover li > a, .journey-menu-popover li > div { display: grid; grid-template-columns: auto 1fr; gap: .65rem; padding: .65rem; border: 1px solid transparent; border-radius: var(--radius-small); color: var(--cream-100); text-decoration: none; }.journey-menu-popover li > a:hover, .journey-menu-popover li > a:focus-visible { border-color: var(--color-border); background: rgb(255 255 255 / 5%); }
 .journey-menu-popover li i { grid-row: 1 / 2; display: grid; width: 1.7rem; aspect-ratio: 1; place-items: center; border: 1px solid currentColor; border-radius: 50%; color: var(--color-text-muted); font-style: normal; font-size: .65rem; }.journey-menu-popover li span { min-width: 0; }.journey-menu-popover li strong { font-family: Georgia, serif; font-size: .9rem; }.journey-menu-popover li small { float: right; color: var(--color-text-muted); font-size: .56rem; text-transform: uppercase; }.journey-menu-popover li p { margin: .2rem 0 0; color: var(--color-text-muted); font-size: .65rem; line-height: 1.4; }
@@ -2574,7 +2575,8 @@ h3 {
   .world-progression-path > b { justify-self: center; transform: rotate(90deg); }
   .room-completion-panel { flex-wrap: wrap; }
   .room-completion-actions > * { flex: 1 1 10rem; }
-  .journey-menu-popover { position: fixed; top: auto; right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom)); left: 1rem; width: auto; max-height: min(70vh, 32rem); overflow-y: auto; }
+  .journey-menu-backdrop { place-items: end center; padding-top: max(1rem, env(safe-area-inset-top)); }
+  .journey-menu-popover { max-height: min(78svh, 36rem); }
 }
 @media (prefers-reduced-motion: reduce) {
   .globe-node.is-next-locked > span { animation: none; }
