@@ -405,7 +405,5 @@ export async function persistQuestionGardenCompletion() {
     if (current?.question_garden_completed_at) return { ok: true as const, alreadyCompleted: true, navigationMetadataSaved: false };
     return { ok: false as const, reason: "completion_write_failed" as const };
   }
-  const { error: navigationError } = await authorized.admin.from("user_journey_progress")
-    .update({ last_location: "world", last_world_destination: "question-garden" }).eq("user_id", authorized.access.user.id);
-  return { ok: true as const, alreadyCompleted: false, navigationMetadataSaved: !navigationError };
+  return { ok: true as const, alreadyCompleted: false, navigationMetadataSaved: false };
 }

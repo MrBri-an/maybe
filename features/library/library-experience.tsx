@@ -10,10 +10,10 @@ import { EmptyShelf, StorybookLibraryCard, UploadedBookCard } from "./book-card"
 import { LibraryJourneyPanel } from "@/features/progression/room-completion-panel";
 import { recordLibraryLocation } from "@/app/library/progression-actions";
 
-type LibraryExperienceProps = { initialBooks: PublicLibraryBook[]; initialStorybookPage?: number };
+type LibraryExperienceProps = { initialBooks: PublicLibraryBook[]; initialStorybookPage?: number; libraryCompleted?: boolean };
 type Panel = { mode: "add" } | { mode: "edit"; book: PublicLibraryBook } | null;
 
-export function LibraryExperience({ initialBooks, initialStorybookPage = 1 }: LibraryExperienceProps) {
+export function LibraryExperience({ initialBooks, initialStorybookPage = 1, libraryCompleted = false }: LibraryExperienceProps) {
   const reduceMotion = Boolean(useReducedMotion());
   const [books, setBooks] = useState(initialBooks);
   const [panel, setPanel] = useState<Panel>(null);
@@ -71,7 +71,7 @@ export function LibraryExperience({ initialBooks, initialStorybookPage = 1 }: Li
       </section>
       <LibraryShelf title="Jessica’s Shelf" eyebrow="Private shelf" books={jessicasShelf} emptyMessage="A quiet place for the stories, books and worlds you love." deletingId={deletingId} onEdit={(book) => setPanel({ mode: "edit", book })} onDelete={removeBook} />
       <LibraryShelf title="Read Together" eyebrow="Shared shelf" books={readTogether} emptyMessage="Books we may choose, start and discover together." deletingId={deletingId} onEdit={(book) => setPanel({ mode: "edit", book })} onDelete={removeBook} />
-      <LibraryJourneyPanel />
+      <LibraryJourneyPanel alreadyCompleted={libraryCompleted} />
       <AnimatePresence>{panel ? <BookPanel panel={panel} onClose={() => setPanel(null)} onSaved={(book, message) => {
         setBooks((current) => panel.mode === "add" ? [book, ...current] : current.map((item) => item.id === book.id ? book : item));
         setNotice(message);

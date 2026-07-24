@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { completeLibraryJourney } from "@/app/library/progression-actions";
 
 export function RoomCompletionPanel({ title, message, primary, secondaryHref = "/?view=world", children }: {
@@ -20,26 +20,50 @@ export function RoomCompletionPanel({ title, message, primary, secondaryHref = "
   );
 }
 
-export function LibraryJourneyPanel() {
+export function LibraryJourneyPanel({ alreadyCompleted }: { alreadyCompleted: boolean }) {
   const router = useRouter();
   const pendingRef = useRef(false);
-  const [pending, startTransition] = useTransition();
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const continueJourney = () => {
+  useEffect(() => () => {
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+  }, []);
+
+  if (alreadyCompleted) {
+    return (
+      <RoomCompletionPanel
+        title="The next destination is open"
+        message="The Library is complete. The Puzzle Room is ready whenever you want to continue."
+        primary={<Link href="/puzzles" prefetch>Continue the journey</Link>}
+      />
+    );
+  }
+
+  const continueJourney = async () => {
     if (pendingRef.current) return;
     pendingRef.current = true;
+    setPending(true);
     setError(null);
-    startTransition(async () => {
+    try {
       const result = await completeLibraryJourney();
       if (result.ok) {
-        router.push("/?view=world");
-        router.refresh();
+        router.replace("/puzzles");
+        fallbackTimer.current = setTimeout(() => {
+          if (window.location.pathname === "/library") window.location.assign("/puzzles");
+        }, 1500);
         return;
       }
-      pendingRef.current = false;
       setError(result.error ?? "The next step could not be saved. Please try again.");
-    });
+    } catch {
+      setError("The next step could not be saved. Please try again.");
+    } finally {
+      if (!fallbackTimer.current) {
+        pendingRef.current = false;
+        setPending(false);
+      }
+    }
   };
 
   return (

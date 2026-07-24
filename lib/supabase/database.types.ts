@@ -127,6 +127,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      gallery_media: {
+        Row: {
+          id: string;
+          uploader_user_id: string;
+          storage_path: string;
+          original_filename: string;
+          media_kind: "image" | "video";
+          mime_type: string;
+          file_size_bytes: number;
+          title: string | null;
+          caption: string | null;
+          width: number | null;
+          height: number | null;
+          duration_seconds: number | null;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          uploader_user_id: string;
+          storage_path: string;
+          original_filename: string;
+          media_kind: "image" | "video";
+          mime_type: string;
+          file_size_bytes: number;
+          title?: string | null;
+          caption?: string | null;
+          width?: number | null;
+          height?: number | null;
+          duration_seconds?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          archived_at?: string | null;
+        };
+        Update: {
+          title?: string | null;
+          caption?: string | null;
+          archived_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       question_garden_questions: {
         Row: {
           id: string;
@@ -279,7 +322,8 @@ export type Database = {
           puzzle_room_completed_at: string | null;
           radio_completed_at: string | null;
           question_garden_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
+          gallery_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
           last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
@@ -305,7 +349,8 @@ export type Database = {
           puzzle_room_completed_at?: string | null;
           radio_completed_at?: string | null;
           question_garden_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
+          gallery_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
@@ -330,7 +375,8 @@ export type Database = {
           puzzle_room_completed_at?: string | null;
           radio_completed_at?: string | null;
           question_garden_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
+          gallery_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };
@@ -360,6 +406,7 @@ export type Database = {
 export type AppMember = Database["public"]["Tables"]["app_members"]["Row"];
 export type LibraryBook = Database["public"]["Tables"]["library_books"]["Row"];
 export type RadioTrack = Database["public"]["Tables"]["radio_tracks"]["Row"];
+export type GalleryMedia = Database["public"]["Tables"]["gallery_media"]["Row"];
 export type QuestionGardenQuestion = Database["public"]["Tables"]["question_garden_questions"]["Row"];
 export type QuestionGardenAnswer = Database["public"]["Tables"]["question_garden_answers"]["Row"];
 export type UserJourneyProgress = Database["public"]["Tables"]["user_journey_progress"]["Row"];

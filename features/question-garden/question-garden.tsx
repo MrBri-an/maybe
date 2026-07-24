@@ -207,11 +207,11 @@ function GardenCompletionPanel({ alreadyCompleted }: { alreadyCompleted: boolean
     if (lock.current) return; lock.current = true; setPending(true); setError(null);
     try {
       const result = await completeQuestionGardenJourney();
-      if (result.ok) { router.replace("/?view=world"); fallback.current = setTimeout(() => { if (window.location.pathname === "/question-garden") window.location.assign("/?view=world"); }, 1500); return; }
+      if (result.ok) { router.replace("/gallery"); fallback.current = setTimeout(() => { if (window.location.pathname === "/question-garden") window.location.assign("/gallery"); }, 1500); return; }
     } catch {
       // The warm, generic error below intentionally hides transport and database details.
     }
     lock.current = false; setPending(false); setError("The next path could not be saved just now.");
   };
-  return <RoomCompletionPanel title="Ready for another path?" message="This garden will keep growing whenever either of you has something to ask. You do not need to answer every question before continuing." primary={alreadyCompleted ? <Link href="/?view=world" prefetch>Continue the journey</Link> : <button type="button" disabled={pending} aria-busy={pending} onClick={() => void complete()}>{pending ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
+  return <RoomCompletionPanel title="Ready for another path?" message="This garden will keep growing whenever either of you has something to ask. You do not need to answer every question before continuing." primary={alreadyCompleted ? <Link href="/gallery" prefetch>Continue the journey</Link> : <button type="button" disabled={pending} aria-busy={pending} onClick={() => void complete()}>{pending ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
 }

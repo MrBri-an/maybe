@@ -17,5 +17,5 @@ export default async function LibraryPage() {
   const { data } = await admin.from("library_books").select("*").order("created_at", { ascending: false });
   const books = (data ?? []).map((book) => toPublicBook(book, access.user.id));
 
-  return <LibraryExperience initialBooks={books} initialStorybookPage={journey.progress.storybook_page} />;
+  return <LibraryExperience initialBooks={books} initialStorybookPage={journey.progress.storybook_page} libraryCompleted={Boolean(journey.progress.library_completed_at)} />;
 }
