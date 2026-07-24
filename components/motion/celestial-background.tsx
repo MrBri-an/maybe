@@ -18,7 +18,7 @@ const stars = Array.from({ length: 50 }, (_, index) => {
 
 type CelestialBackgroundProps = {
   moonProgress?: number;
-  room?: "world" | "storybook" | "library" | "puzzles" | "radio" | "entrance";
+  room?: "world" | "storybook" | "library" | "puzzles" | "radio" | "garden" | "entrance";
 };
 
 export function CelestialBackground({ moonProgress = 0, room = "world" }: CelestialBackgroundProps) {

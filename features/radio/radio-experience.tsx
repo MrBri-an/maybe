@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { completeRadioJourney, deleteRadioTrack, recordRadioLocation, updateRadioTrack, uploadRadioTrack } from "@/app/radio/actions";
 import { CelestialBackground } from "@/components/motion/celestial-background";
 import { JourneyProgressMenu } from "@/features/progression/journey-progress-menu";
@@ -64,7 +64,7 @@ export function RadioExperience({ initialTracks, progress }: { initialTracks: Pu
         ))}</div> : <div className="radio-empty"><span aria-hidden="true">♫</span><h3>The room is quiet for now</h3><p>Add an authorised song whenever something belongs here. Nothing needs to be uploaded to continue.</p></div>}
       </section>
       <RadioPlayer tracks={tracks} requestedTrackId={activeId} onActiveChange={setActiveId} registerStop={registerStop} />
-      <RadioJourneyPanel />
+      <RadioJourneyPanel alreadyCompleted={progress.radio} />
       <AnimatePresence>{panel ? <TrackPanel panel={panel} onClose={() => setPanel(null)} onSaved={(track, message) => {
         setTracks((items) => panel.mode === "add" ? [...items, track] : items.map((item) => item.id === track.id ? track : item));
         setNotice(message); setPanel(null);
@@ -196,14 +196,52 @@ function TrackPanel({ panel, onClose, onSaved }: { panel: Exclude<Panel, null>; 
   </motion.div>;
 }
 
-function RadioJourneyPanel() {
+function RadioJourneyPanel({ alreadyCompleted }: { alreadyCompleted: boolean }) {
   const router = useRouter();
   const lock = useRef(false);
-  const [pending, startTransition] = useTransition();
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  return <RoomCompletionPanel title="Ready for the next part?" message="This music library will stay open for every favourite song and shared discovery. You do not need to upload or play anything before continuing." primary={<button type="button" disabled={pending} aria-busy={pending} onClick={() => {
-    if (lock.current) return; lock.current = true; setError(null); startTransition(async () => { const result = await completeRadioJourney(); if (result.ok) { router.push("/?view=world"); router.refresh(); } else { lock.current = false; setError(result.error); } });
-  }}>{pending ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
+
+  useEffect(() => {
+    return () => {
+      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    };
+  }, []);
+
+  if (alreadyCompleted) {
+    return <RoomCompletionPanel title="The next destination is open" message="Jessica’s Radio is complete. The Question Garden is ready whenever you want to continue." primary={<Link href="/question-garden" prefetch>Continue the journey</Link>} />;
+  }
+
+  const continueJourney = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    setPending(true);
+    setError(null);
+
+    try {
+      const result = await completeRadioJourney();
+      if (result.ok) {
+        router.replace("/question-garden");
+        fallbackTimer.current = setTimeout(() => {
+          if (window.location.pathname === "/radio") {
+            window.location.assign("/question-garden");
+          }
+        }, 1500);
+        return;
+      }
+      setError(result.error);
+    } catch {
+      setError("The next step could not be saved. Please try again.");
+    } finally {
+      if (!fallbackTimer.current) {
+        setPending(false);
+        lock.current = false;
+      }
+    }
+  };
+
+  return <RoomCompletionPanel title="Ready for the next part?" message="This music library will stay open for every favourite song and shared discovery. You do not need to upload or play anything before continuing." primary={<button type="button" disabled={pending} aria-busy={pending} onClick={() => void continueJourney()}>{pending ? "Continuing…" : "Continue the journey"}</button>}>{error ? <p role="alert">{error}</p> : null}</RoomCompletionPanel>;
 }
 
 function formatBytes(bytes: number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`; }

@@ -12,14 +12,17 @@ import { getQuestionBank, type QuizId } from "@/features/puzzles/quiz/question-b
 import { attemptAsJson, type SavedQuizAttempt, type VerifiedQuizResult } from "@/features/puzzles/quiz/contracts";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 
-export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio";
+export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
 export type PuzzleId = "millionaire" | "kculture" | "constellation";
 export type PuzzleRoomCompletionResult =
   | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
   | { ok: false; reason: "unauthorized" | "missing_prerequisite" | "completion_write_failed" };
+export type RadioCompletionResult =
+  | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
+  | { ok: false; reason: "unauthorized" | "missing_prerequisite" | "completion_write_failed" };
 export const worldDestinationSchema = z.enum(JOURNEY_ROOM_SLUGS);
 const pageSchema = z.number().int().min(1).max(30);
-const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio"]);
+const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio", "question_garden"]);
 const puzzleSchema = z.enum(["millionaire", "kculture", "constellation"]);
 
 async function authorizeProgress() {
@@ -357,18 +360,69 @@ export async function loadAuthorizedRadioProgress() {
     && loaded.progress.puzzle_room_completed_at ? loaded : null;
 }
 
-export async function persistRadioCompletion() {
-  const loaded = await loadAuthorizedRadioProgress();
-  if (!loaded) return { ok: false as const };
+export async function persistRadioCompletion(): Promise<RadioCompletionResult> {
   const authorized = await authorizeProgress();
-  if (!authorized) return { ok: false as const };
-  const completedAt = loaded.progress.radio_completed_at ?? new Date().toISOString();
-  const { data } = await authorized.admin.from("user_journey_progress").update({
-    radio_completed_at: completedAt,
-    last_location: "world",
-    last_world_destination: "jessicas-radio",
-  }).eq("user_id", authorized.access.user.id).select("*").single();
-  return data ? { ok: true as const, progress: data } : { ok: false as const };
+  if (!authorized) return { ok: false, reason: "unauthorized" };
+  const loaded = await loadOrCreateAuthorizedProgress(authorized);
+  if (!loaded) return { ok: false, reason: "completion_write_failed" };
+  if (!loaded.progress.storybook_completed_at
+    || !loaded.progress.library_completed_at
+    || !loaded.progress.puzzle_room_completed_at) {
+    return { ok: false, reason: "missing_prerequisite" };
+  }
+  if (loaded.progress.radio_completed_at) {
+    return { ok: true, alreadyCompleted: true, navigationMetadataSaved: false };
+  }
+
+  const { data: completed, error: completionError } = await authorized.admin
+    .from("user_journey_progress")
+    .update({ radio_completed_at: new Date().toISOString() })
+    .eq("user_id", authorized.access.user.id)
+    .is("radio_completed_at", null)
+    .select("user_id,radio_completed_at")
+    .maybeSingle();
+  if (completionError) {
+    console.error("Radio completion operation failed", {
+      operation: "persist_completion",
+      code: completionError.code,
+      alreadyCompleted: false,
+    });
+    return { ok: false, reason: "completion_write_failed" };
+  }
+  if (!completed || completed.user_id !== authorized.access.user.id) {
+    const { data: current, error: reloadError } = await authorized.admin
+      .from("user_journey_progress")
+      .select("radio_completed_at")
+      .eq("user_id", authorized.access.user.id)
+      .maybeSingle();
+    if (reloadError) {
+      console.error("Radio completion operation failed", {
+        operation: "confirm_completion",
+        code: reloadError.code,
+        alreadyCompleted: false,
+      });
+    }
+    if (current?.radio_completed_at) {
+      return { ok: true, alreadyCompleted: true, navigationMetadataSaved: false };
+    }
+    return { ok: false, reason: "completion_write_failed" };
+  }
+
+  const { error: navigationError } = await authorized.admin
+    .from("user_journey_progress")
+    .update({
+      last_location: "question_garden",
+      last_world_destination: "question-garden",
+    })
+    .eq("user_id", authorized.access.user.id);
+  if (navigationError) {
+    console.error("Radio completion operation failed", {
+      operation: "save_navigation_metadata",
+      code: navigationError.code,
+      alreadyCompleted: false,
+    });
+  }
+  return { ok: true, alreadyCompleted: false, navigationMetadataSaved: !navigationError };
 }
 
 export async function saveSafeLocation(location: SafeLocation) {
@@ -381,6 +435,7 @@ export async function saveSafeLocation(location: SafeLocation) {
   if (parsed.data === "library" && !loaded.progress.storybook_completed_at) return false;
   if (parsed.data === "puzzle_room" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at)) return false;
   if (parsed.data === "radio" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at)) return false;
+  if (parsed.data === "question_garden" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at || !loaded.progress.radio_completed_at)) return false;
   const { error } = await authorized.admin.from("user_journey_progress").update({ last_location: parsed.data }).eq("user_id", authorized.access.user.id);
   return !error;
 }
@@ -412,5 +467,6 @@ export function deriveResumeDestination(progress: UserJourneyProgress, firstProg
   if (progress.last_location === "library" && progress.storybook_completed_at) return "/library";
   if (progress.last_location === "puzzle_room" && progress.storybook_completed_at && progress.library_completed_at) return "/puzzles";
   if (progress.last_location === "radio" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at) return "/radio";
+  if (progress.last_location === "question_garden" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at && progress.radio_completed_at) return "/question-garden";
   return "/?view=world";
 }

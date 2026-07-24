@@ -127,6 +127,136 @@ export type Database = {
         };
         Relationships: [];
       };
+      question_garden_questions: {
+        Row: {
+          id: string;
+          source_type: "curated" | "custom";
+          category: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected";
+          prompt: string;
+          response_type: "long_text" | "short_text" | "choice";
+          options: Json | null;
+          personal_note: string | null;
+          planted_by_user_id: string | null;
+          sort_order: number;
+          active: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_type: "curated" | "custom";
+          category: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected";
+          prompt: string;
+          response_type: "long_text" | "short_text" | "choice";
+          options?: Json | null;
+          personal_note?: string | null;
+          planted_by_user_id?: string | null;
+          sort_order: number;
+          active?: boolean;
+          archived_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          category?: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected";
+          prompt?: string;
+          response_type?: "long_text" | "short_text" | "choice";
+          options?: Json | null;
+          personal_note?: string | null;
+          sort_order?: number;
+          active?: boolean;
+          archived_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      question_garden_answers: {
+        Row: {
+          id: string;
+          question_id: string;
+          user_id: string;
+          status: "draft" | "submitted" | "skipped";
+          answer_text: string | null;
+          selected_option: string | null;
+          submitted_at: string | null;
+          revealed_at: string | null;
+          follow_up_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          question_id: string;
+          user_id: string;
+          status?: "draft" | "submitted" | "skipped";
+          answer_text?: string | null;
+          selected_option?: string | null;
+          submitted_at?: string | null;
+          revealed_at?: string | null;
+          follow_up_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: "draft" | "submitted" | "skipped";
+          answer_text?: string | null;
+          selected_option?: string | null;
+          submitted_at?: string | null;
+          revealed_at?: string | null;
+          follow_up_note?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      question_garden_reactions: {
+        Row: {
+          id: string;
+          question_id: string;
+          user_id: string;
+          reaction: "heart" | "laugh" | "sparkle" | "emotional";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          question_id: string;
+          user_id: string;
+          reaction: "heart" | "laugh" | "sparkle" | "emotional";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          reaction?: "heart" | "laugh" | "sparkle" | "emotional";
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      question_garden_member_state: {
+        Row: {
+          user_id: string;
+          last_question_id: string | null;
+          last_category: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected" | null;
+          last_visited_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          last_question_id?: string | null;
+          last_category?: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected" | null;
+          last_visited_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          last_question_id?: string | null;
+          last_category?: "How We Began" | "Little Things" | "Dreams and the Future" | "You, Me and Us" | "Fun and Unexpected" | null;
+          last_visited_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -148,7 +278,8 @@ export type Database = {
           puzzle_kculture_attempt_updated_at: string | null;
           puzzle_room_completed_at: string | null;
           radio_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio";
+          question_garden_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
           last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
@@ -173,7 +304,8 @@ export type Database = {
           puzzle_kculture_attempt_updated_at?: string | null;
           puzzle_room_completed_at?: string | null;
           radio_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio";
+          question_garden_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
@@ -197,7 +329,8 @@ export type Database = {
           puzzle_kculture_attempt_updated_at?: string | null;
           puzzle_room_completed_at?: string | null;
           radio_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio";
+          question_garden_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };
@@ -205,7 +338,20 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      submit_question_garden_answer: {
+        Args: {
+          p_question_id: string;
+          p_user_id: string;
+          p_answer_text: string | null;
+          p_selected_option: string | null;
+        };
+        Returns: {
+          revealed: boolean;
+          reveal_timestamp: string | null;
+        }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
@@ -214,4 +360,6 @@ export type Database = {
 export type AppMember = Database["public"]["Tables"]["app_members"]["Row"];
 export type LibraryBook = Database["public"]["Tables"]["library_books"]["Row"];
 export type RadioTrack = Database["public"]["Tables"]["radio_tracks"]["Row"];
+export type QuestionGardenQuestion = Database["public"]["Tables"]["question_garden_questions"]["Row"];
+export type QuestionGardenAnswer = Database["public"]["Tables"]["question_garden_answers"]["Row"];
 export type UserJourneyProgress = Database["public"]["Tables"]["user_journey_progress"]["Row"];
