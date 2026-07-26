@@ -3,14 +3,55 @@
 import { z } from "zod";
 import { authorizeFinalWorld } from "@/lib/final-world/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { FinalWorldLetter } from "@/lib/supabase/database.types";
+import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 import { persistFinalWorldCompletion } from "@/lib/progression/user-progress";
 
 const draftSchema = z.object({
   title: z.string().trim().min(1).max(160),
   body: z.string().trim().min(1).max(12000),
 });
+const recipientEmailSchema = z.string().trim().toLowerCase().email().max(254);
 
 type AuthorContext = NonNullable<Awaited<ReturnType<typeof authorizeFinalWorld>>>;
+
+type SafeDatabaseError = { code?: string | null; message?: string | null; hint?: string | null };
+
+function finalLetterDatabaseError(operation: "save" | "seal", error: SafeDatabaseError) {
+  const safeReason = error.message?.includes("final_world_recipient_unavailable")
+    ? "Jessica does not have an approved guest account yet. Add and link her approved membership before saving this private letter."
+    : error.message?.includes("final_world_author_not_authorized")
+      ? "Your approved owner session could not be verified. Sign in again before saving."
+      : error.message?.includes("final_world_letter_not_editable")
+        ? "The canonical letter is no longer an editable draft."
+        : error.message?.includes("final_world_letter_invalid")
+          ? "The title or letter body does not meet the allowed length requirements."
+          : `${operation === "save" ? "Save" : "Seal"} failed${error.code ? ` (${error.code})` : ""}. Please try again.`;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.error("Final letter database operation failed", {
+      operation,
+      code: error.code ?? null,
+      message: error.message ?? null,
+      hint: error.hint ?? null,
+    });
+  }
+  return safeReason;
+}
+
+function parseFinalLetterRpcRow(value: unknown): FinalWorldLetter | null {
+  const candidate = Array.isArray(value) ? (value.length === 1 ? value[0] : null) : value;
+  if (!candidate || typeof candidate !== "object") return null;
+  const row = candidate as Partial<FinalWorldLetter>;
+  return typeof row.id === "string"
+    && typeof row.author_user_id === "string"
+    && typeof row.recipient_user_id === "string"
+    && typeof row.title === "string"
+    && typeof row.body === "string"
+    && ["draft", "sealed", "opened", "withdrawn"].includes(row.status ?? "")
+    ? row as FinalWorldLetter
+    : null;
+}
 
 async function authorizeLetterAuthor(): Promise<AuthorContext | null> {
   const context = await authorizeFinalWorld();
@@ -25,6 +66,139 @@ async function authorizeLetterAuthor(): Promise<AuthorContext | null> {
 
   if (error || membership?.role !== "owner") return null;
   return context;
+}
+
+export type FinalRecipientState = { ready: boolean };
+
+type PrepareRecipientResult =
+  | { ok: true; recipient: FinalRecipientState }
+  | { ok: false; error: string; code: "invalid_email" | "conflict" | "invitation_failed" | "unauthorized" };
+
+async function findAuthUserByEmail(context: AuthorContext, email: string) {
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await context.admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) return { user: null, error };
+    const user = data.users.find((candidate) => candidate.email?.trim().toLowerCase() === email);
+    if (user) return { user, error: null };
+    if (data.users.length < 1000) break;
+  }
+  return { user: null, error: null };
+}
+
+export async function loadFinalRecipientState(): Promise<FinalRecipientState | null> {
+  const context = await authorizeLetterAuthor();
+  if (!context) return null;
+  const { data, error } = await context.admin.from("app_members")
+    .select("user_id")
+    .eq("role", "guest")
+    .eq("active", true)
+    .not("user_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (error) return { ready: false };
+  return { ready: Boolean(data?.user_id) };
+}
+
+export async function prepareFinalLetterRecipient(input: unknown): Promise<PrepareRecipientResult> {
+  const parsed = recipientEmailSchema.safeParse(
+    typeof input === "object" && input !== null && "email" in input
+      ? (input as { email?: unknown }).email
+      : input,
+  );
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_email", error: "Enter a valid email address for Jessica." };
+  }
+  const context = await authorizeLetterAuthor();
+  if (!context) {
+    return { ok: false, code: "unauthorized", error: "Only the approved owner can prepare Jessica’s access." };
+  }
+  const config = getServerSupabaseConfig();
+  if (!config) {
+    return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be prepared. Your letter is still here. Please try again." };
+  }
+
+  const { data: activeGuests, error: guestError } = await context.admin.from("app_members")
+    .select("approved_email,user_id")
+    .eq("role", "guest")
+    .eq("active", true)
+    .limit(2);
+  if (guestError) {
+    return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be checked. Your letter is still here." };
+  }
+  const conflictingGuest = activeGuests?.find((guest) => guest.approved_email !== parsed.data);
+  if (conflictingGuest) {
+    return { ok: false, code: "conflict", error: "A different active guest is already approved. Nothing was changed." };
+  }
+  const preparedGuest = activeGuests?.find((guest) => guest.approved_email === parsed.data);
+  if (preparedGuest?.user_id) return { ok: true, recipient: { ready: true } };
+
+  const { data: matchingMember, error: memberError } = await context.admin.from("app_members")
+    .select("id,role,active,user_id")
+    .eq("approved_email", parsed.data)
+    .maybeSingle();
+  if (memberError || matchingMember?.role === "owner"
+    || (matchingMember?.user_id && preparedGuest?.user_id && matchingMember.user_id !== preparedGuest.user_id)) {
+    return { ok: false, code: "conflict", error: "That address already belongs to a different approved membership. Nothing was changed." };
+  }
+
+  const { user: existingAuthUser, error: authLookupError } = await findAuthUserByEmail(context, parsed.data);
+  let authUser = existingAuthUser;
+  if (authLookupError) {
+    return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be checked. Your letter is still here." };
+  }
+  if (!authUser) {
+    const { data, error } = await context.admin.auth.admin.inviteUserByEmail(parsed.data, {
+      redirectTo: new URL("/auth/callback", config.appBaseUrl).toString(),
+    });
+    if (error || !data.user) {
+      const retryLookup = await findAuthUserByEmail(context, parsed.data);
+      authUser = retryLookup.user;
+      if (!authUser) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Final recipient invitation failed", {
+            operation: "invite_final_recipient",
+            code: error?.code ?? null,
+            message: error?.message ?? null,
+            status: error?.status ?? null,
+          });
+        }
+        return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be prepared. Your letter is still here. Please try again." };
+      }
+    } else {
+      authUser = data.user;
+    }
+  }
+  if (matchingMember?.user_id && matchingMember.user_id !== authUser.id) {
+    return { ok: false, code: "conflict", error: "That approved membership is linked to a different account. Nothing was changed." };
+  }
+
+  const membershipWrite = matchingMember
+    ? context.admin.from("app_members")
+      .update({ user_id: authUser.id, role: "guest", active: true })
+      .eq("id", matchingMember.id)
+      .eq("role", "guest")
+    : context.admin.from("app_members")
+      .insert({ approved_email: parsed.data, user_id: authUser.id, role: "guest", active: true });
+  const { error: writeError } = await membershipWrite;
+  if (writeError) {
+    const { data: idempotentGuest } = await context.admin.from("app_members")
+      .select("user_id")
+      .eq("approved_email", parsed.data)
+      .eq("role", "guest")
+      .eq("active", true)
+      .maybeSingle();
+    if (idempotentGuest?.user_id === authUser.id) return { ok: true, recipient: { ready: true } };
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Final recipient membership operation failed", {
+        operation: "link_final_recipient",
+        code: writeError.code,
+        message: writeError.message,
+        hint: writeError.hint,
+      });
+    }
+    return { ok: false, code: "conflict", error: "Jessica’s invitation exists, but her approved membership could not be linked safely. Nothing was reassigned." };
+  }
+  return { ok: true, recipient: { ready: true } };
 }
 
 export type FinalLetterView =
@@ -112,19 +286,20 @@ export async function saveFinalLetterDraft(input: unknown): Promise<LetterAction
     p_title: parsed.data.title,
     p_body: parsed.data.body,
   });
-  if (error || !data || data.author_user_id !== context.authorized.access.user.id || data.status !== "draft") {
-    if (error) console.error("Final letter operation failed", { operation: "save_draft", code: error.code });
-    return { ok: false, error: "Your draft could not be saved. Your words are still here." };
+  if (error) return { ok: false, error: finalLetterDatabaseError("save", error) };
+  const saved = parseFinalLetterRpcRow(data);
+  if (!saved || saved.author_user_id !== context.authorized.access.user.id || saved.status !== "draft") {
+    return { ok: false, error: "Save failed because the database returned an unexpected result shape." };
   }
   return {
     ok: true,
     letter: {
       audience: "author",
       status: "draft",
-      title: data.title,
-      body: data.body,
-      sealedAt: data.sealed_at,
-      openedAt: data.opened_at,
+      title: saved.title,
+      body: saved.body,
+      sealedAt: saved.sealed_at,
+      openedAt: saved.opened_at,
     },
   };
 }
@@ -154,25 +329,27 @@ export async function sealFinalLetter(input: unknown): Promise<LetterActionResul
       p_title: parsed.data.title,
       p_body: parsed.data.body,
   });
-  if (saveError || !saved || saved.author_user_id !== context.authorized.access.user.id || saved.status !== "draft") {
-    if (saveError) console.error("Final letter operation failed", { operation: "save_before_seal", code: saveError.code });
-    return { ok: false, error: "The latest words could not be saved, so the letter was not sealed." };
+  if (saveError) return { ok: false, error: finalLetterDatabaseError("save", saveError) };
+  const savedRow = parseFinalLetterRpcRow(saved);
+  if (!savedRow || savedRow.author_user_id !== context.authorized.access.user.id || savedRow.status !== "draft") {
+    return { ok: false, error: "The latest draft returned an unexpected database result, so it was not sealed." };
   }
-  const { data: sealed, error } = await context.supabase.rpc("seal_final_world_letter", { p_letter_id: saved.id });
-  if (error || !sealed || sealed.author_user_id !== context.authorized.access.user.id
-    || (sealed.status !== "sealed" && sealed.status !== "opened")) {
-    if (error) console.error("Final letter operation failed", { operation: "seal", code: error.code });
-    return { ok: false, error: "The letter could not be sealed. Your latest words remain saved as a draft." };
+  const { data: sealed, error } = await context.supabase.rpc("seal_final_world_letter", { p_letter_id: savedRow.id });
+  if (error) return { ok: false, error: finalLetterDatabaseError("seal", error) };
+  const sealedRow = parseFinalLetterRpcRow(sealed);
+  if (!sealedRow || sealedRow.author_user_id !== context.authorized.access.user.id
+    || (sealedRow.status !== "sealed" && sealedRow.status !== "opened")) {
+    return { ok: false, error: "The letter returned an unexpected database result after sealing." };
   }
   return {
     ok: true,
     letter: {
       audience: "author",
-      status: sealed.status,
-      title: sealed.title,
-      body: sealed.body,
-      sealedAt: sealed.sealed_at,
-      openedAt: sealed.opened_at,
+      status: sealedRow.status,
+      title: sealedRow.title,
+      body: sealedRow.body,
+      sealedAt: sealedRow.sealed_at,
+      openedAt: sealedRow.opened_at,
     },
   };
 }
@@ -211,7 +388,8 @@ export async function openFinalLetter(): Promise<OpenLetterResult> {
   const { data, error } = await context.supabase.rpc("open_final_world_letter", {
     p_letter_id: current.id,
   });
-  if (error || !data || data.status !== "opened" || !data.opened_at || !data.sealed_at) {
+  const opened = parseFinalLetterRpcRow(data);
+  if (error || !opened || opened.status !== "opened" || !opened.opened_at || !opened.sealed_at) {
     if (error) console.error("Final letter operation failed", { operation: "open", code: error.code });
     return { ok: false, error: "The letter could not be opened. Please try again." };
   }
@@ -219,10 +397,10 @@ export async function openFinalLetter(): Promise<OpenLetterResult> {
     ok: true,
     letter: {
       status: "opened",
-      title: data.title,
-      body: data.body,
-      sealedAt: data.sealed_at,
-      openedAt: data.opened_at,
+      title: opened.title,
+      body: opened.body,
+      sealedAt: opened.sealed_at,
+      openedAt: opened.opened_at,
     },
   };
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from "react";
 import {
   completeFinalWorldJourney,
   openFinalLetter,
+  prepareFinalLetterRecipient,
   saveFinalLetterDraft,
   sealFinalLetter,
   withdrawFinalLetter,
@@ -12,6 +13,7 @@ import {
   type OpenedFinalLetter,
 } from "@/app/the-world-i-can-give-you/actions";
 import { JourneyProgressMenu } from "@/features/progression/journey-progress-menu";
+import { LatestSaveQueue, type SaveRevision } from "@/lib/final-world/latest-save-queue";
 
 const DEFAULT_TITLE = "The World I Can Give You";
 const AUTOSAVE_DELAY = 900;
@@ -113,8 +115,10 @@ function Envelope({ active = false, opening = false }: { active?: boolean; openi
 
 function AuthorExperience({
   initialLetter,
+  initialRecipientReady,
 }: {
   initialLetter: Extract<FinalLetterView, { audience: "author" }>;
+  initialRecipientReady: boolean;
 }) {
   const initialDraft = initialLetter.status === "none" ? null : initialLetter;
   const [letter, setLetter] = useState(initialLetter);
@@ -122,51 +126,56 @@ function AuthorExperience({
   const [preview, setPreview] = useState(false);
   const [title, setTitle] = useState(initialDraft?.title ?? DEFAULT_TITLE);
   const [body, setBody] = useState(initialDraft?.body ?? "");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(initialLetter.status === "draft" ? "saved" : "idle");
   const [sealing, setSealing] = useState(false);
   const [message, setMessage] = useState("");
+  const [recipientReady, setRecipientReady] = useState(initialRecipientReady);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupEmail, setSetupEmail] = useState("");
+  const [setupPending, setSetupPending] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [setupPurpose, setSetupPurpose] = useState<"save" | "seal">("save");
   const timerRef = useRef<number | null>(null);
-  const inFlightRef = useRef(false);
-  const queuedRef = useRef<{ title: string; body: string; revision: number } | null>(null);
-  const idleResolversRef = useRef<Array<() => void>>([]);
+  const [saveQueue] = useState(() => new LatestSaveQueue<Awaited<ReturnType<typeof saveFinalLetterDraft>>>(
+    (draft) => saveFinalLetterDraft({ title: draft.title, body: draft.body }),
+  ));
   const revisionRef = useRef(0);
   const mountedRef = useRef(true);
   const actionLockRef = useRef(false);
+  const setupLockRef = useRef(false);
+  const recipientReadyRef = useRef(initialRecipientReady);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const runSave = useCallback(async (draft: { title: string; body: string; revision: number }) => {
-    if (inFlightRef.current) {
-      queuedRef.current = draft;
-      return;
-    }
-    inFlightRef.current = true;
-    let current: typeof draft | null = draft;
-    while (current) {
-      if (current.title.trim() && current.body.trim()) {
-        if (mountedRef.current) setSaveState("saving");
-        const result = await saveFinalLetterDraft({ title: current.title, body: current.body });
-        if (!mountedRef.current) break;
-        if (result.ok) {
-          if (current.revision === revisionRef.current) {
-            setLetter(result.letter as Extract<FinalLetterView, { audience: "author" }>);
-            setSaveState("saved");
-            setMessage("Draft saved privately.");
-          }
-        } else if (current.revision === revisionRef.current) {
-          setSaveState("error");
-          setMessage(result.error);
-        }
-      }
-      const queued = queuedRef.current;
-      queuedRef.current = null;
-      current = queued && queued.revision > current.revision ? queued : null;
-    }
-    inFlightRef.current = false;
-    idleResolversRef.current.splice(0).forEach((resolve) => resolve());
+  const resizeTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const previousScrollTop = textarea.scrollTop;
+    textarea.style.height = "0px";
+    const isMobile = window.matchMedia("(max-width: 700px)").matches;
+    const maximumHeight = isMobile
+      ? Math.max(288, window.innerHeight * (window.innerWidth <= 380 ? .46 : .52))
+      : Math.max(352, window.innerHeight * .7);
+    const nextHeight = Math.min(textarea.scrollHeight, maximumHeight);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maximumHeight ? "auto" : "hidden";
+    textarea.scrollTop = Math.min(previousScrollTop, Math.max(0, textarea.scrollHeight - nextHeight));
   }, []);
 
-  const waitForSaveIdle = useCallback(() => inFlightRef.current
-    ? new Promise<void>((resolve) => idleResolversRef.current.push(resolve))
-    : Promise.resolve(), []);
+  const runSave = useCallback(async (draft: SaveRevision) => {
+    if (!draft.title.trim() || !draft.body.trim()) return null;
+    if (mountedRef.current) setSaveState("saving");
+    const outcome = await saveQueue.enqueue(draft);
+    if (!mountedRef.current || !outcome || outcome.draft.revision !== revisionRef.current) return outcome;
+    if (outcome.result.ok) {
+      setLetter(outcome.result.letter as Extract<FinalLetterView, { audience: "author" }>);
+      setSaveState("saved");
+      setMessage("Draft saved privately.");
+    } else {
+      setSaveState("error");
+      setMessage(outcome.result.error);
+    }
+    return outcome;
+  }, [saveQueue]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -176,8 +185,19 @@ function AuthorExperience({
     };
   }, []);
 
+  useLayoutEffect(() => {
+    if (!preview) resizeTextarea();
+  }, [body, preview, resizeTextarea]);
+
   useEffect(() => {
-    if (!editing || !title.trim() || !body.trim()) return;
+    const resize = () => resizeTextarea();
+    window.addEventListener("resize", resize);
+    void document.fonts?.ready.then(resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [resizeTextarea]);
+
+  useEffect(() => {
+    if (!editing || !recipientReady || !title.trim() || !body.trim()) return;
     revisionRef.current += 1;
     const revision = revisionRef.current;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -188,7 +208,7 @@ function AuthorExperience({
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     };
-  }, [body, editing, runSave, title]);
+  }, [body, editing, recipientReady, runSave, title]);
 
   useEffect(() => {
     if (!preview) return;
@@ -201,23 +221,60 @@ function AuthorExperience({
 
   const saveNow = async () => {
     if (actionLockRef.current || !title.trim() || !body.trim()) return;
+    if (!recipientReadyRef.current) {
+      setSetupPurpose("save");
+      setSetupError("");
+      setSetupOpen(true);
+      return;
+    }
     actionLockRef.current = true;
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     revisionRef.current += 1;
-    await runSave({ title, body, revision: revisionRef.current });
-    await waitForSaveIdle();
+    const revision = revisionRef.current;
+    const outcome = await runSave({ title, body, revision });
+    if (!outcome || outcome.draft.revision !== revision || !outcome.result.ok) {
+      setSaveState("error");
+      setMessage(outcome && !outcome.result.ok ? outcome.result.error : "The latest revision was not saved.");
+    }
     actionLockRef.current = false;
   };
 
   const seal = async () => {
     if (actionLockRef.current || !title.trim() || !body.trim()) return;
-    if (!window.confirm("Seal this letter for Jessica? Normal editing will no longer be available.")) return;
+    if (!recipientReadyRef.current) {
+      setSetupPurpose("seal");
+      setMessage("Jessica’s private access must be prepared before this letter can be saved and sealed.");
+      setSetupError("The letter needs its intended recipient before it can be sealed.");
+      setSetupOpen(true);
+      return;
+    }
     actionLockRef.current = true;
+    if (!window.confirm("Seal this letter for Jessica? Normal editing will no longer be available.")) {
+      actionLockRef.current = false;
+      return;
+    }
     setSealing(true);
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     revisionRef.current += 1;
-    queuedRef.current = null;
-    await waitForSaveIdle();
+    const revision = revisionRef.current;
+    saveQueue.discardQueued();
+    await saveQueue.waitForIdle();
+    const saveOutcome = await runSave({ title, body, revision });
+    if (!saveOutcome || saveOutcome.draft.revision !== revision || !saveOutcome.result.ok) {
+      setSaveState("error");
+      setMessage(saveOutcome && !saveOutcome.result.ok
+        ? saveOutcome.result.error
+        : "The latest revision could not be saved, so the letter was not sealed.");
+      setSealing(false);
+      actionLockRef.current = false;
+      return;
+    }
     const result = await sealFinalLetter({ title, body });
     if (result.ok) {
       setLetter(result.letter as Extract<FinalLetterView, { audience: "author" }>);
@@ -231,6 +288,28 @@ function AuthorExperience({
     }
     setSealing(false);
     actionLockRef.current = false;
+  };
+
+  const prepareRecipient = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (setupLockRef.current) return;
+    setupLockRef.current = true;
+    setSetupPending(true);
+    setSetupError("");
+    const result = await prepareFinalLetterRecipient({ email: setupEmail });
+    if (result.ok) {
+      recipientReadyRef.current = true;
+      setRecipientReady(true);
+      setSetupOpen(false);
+      setSetupEmail("");
+      setSaveState("idle");
+      setMessage("Jessica’s access is ready. Your letter has not changed.");
+      if (setupPurpose === "seal") window.setTimeout(() => void seal(), 0);
+    } else {
+      setSetupError(result.error);
+    }
+    setSetupPending(false);
+    setupLockRef.current = false;
   };
 
   const withdraw = async () => {
@@ -277,16 +356,33 @@ function AuthorExperience({
     <div className="final-stationery-sheet">
     <span className="final-stationery-flourish" aria-hidden="true">❧</span>
     <label>Title<input value={title} onChange={(event) => { setTitle(event.target.value); setSaveState("idle"); setMessage(""); }} maxLength={160} autoComplete="off" /></label>
-    <label>Letter body<textarea value={body} onChange={(event) => { setBody(event.target.value); setSaveState("idle"); setMessage(""); }} maxLength={12000} rows={14} placeholder="Write what belongs only here…" /></label>
+    <label>Letter body<textarea ref={textareaRef} value={body} onChange={(event) => { setBody(event.target.value); setSaveState("idle"); setMessage(""); }} maxLength={12000} rows={14} placeholder="Write what belongs only here…" /></label>
     <div className="final-letter-count">{body.length.toLocaleString()} / 12,000</div>
     </div>
-    <div className="final-letter-controls">
+    <div className="final-letter-controls final-editor-actions">
       <button type="button" onClick={saveNow} disabled={!title.trim() || !body.trim() || sealing}>Save draft</button>
       <button type="button" onClick={() => setPreview(true)} disabled={!body.trim()}>Preview</button>
       <button type="button" className="is-primary" onClick={seal} disabled={Boolean(incompleteReason) || sealing} title={incompleteReason || "Save the latest words and seal the letter"}>Seal letter</button>
     </div>
+    {!recipientReady ? <aside className="final-recipient-setup-notice">
+      <div><strong>Jessica’s private access has not been prepared yet.</strong><span>Your words will stay in this editor while access is prepared.</span></div>
+      <button type="button" onClick={() => { setSetupPurpose("save"); setSetupError(""); setSetupOpen(true); }}>Set up Jessica’s access</button>
+    </aside> : <p className="final-recipient-ready">Jessica’s access is ready.</p>}
     {incompleteReason ? <p className="final-seal-reason">{incompleteReason}</p> : null}
     {message ? <p className="final-letter-message" role={saveState === "error" ? "alert" : "status"}>{message}</p> : null}
+    {setupOpen ? <div className="final-recipient-setup-backdrop" role="presentation">
+      <form className="final-recipient-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="recipient-setup-title" onSubmit={prepareRecipient}>
+        <p>Private recipient</p>
+        <h3 id="recipient-setup-title">Set up Jessica’s access</h3>
+        <span>Enter the email Jessica will use for this private world. Existing accounts are reused; otherwise Supabase sends one secure invitation.</span>
+        <label>Email address<input type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} autoComplete="email" maxLength={254} required autoFocus /></label>
+        {setupError ? <p role="alert">{setupError}</p> : null}
+        <div>
+          <button type="button" disabled={setupPending} onClick={() => setSetupOpen(false)}>Cancel</button>
+          <button type="submit" className="is-primary" disabled={setupPending || !setupEmail.trim()}>{setupPending ? "Preparing…" : "Prepare access"}</button>
+        </div>
+      </form>
+    </div> : null}
   </section>;
 }
 
@@ -368,7 +464,7 @@ function RecipientExperience({
   </section>;
 }
 
-export function FinalWorldExperience({ initialLetter, finalWorldCompleted }: { initialLetter: FinalLetterView; finalWorldCompleted: boolean }) {
+export function FinalWorldExperience({ initialLetter, initialRecipientReady, finalWorldCompleted }: { initialLetter: FinalLetterView; initialRecipientReady: boolean; finalWorldCompleted: boolean }) {
   const [hidden, setHidden] = useState(false);
   const [completed, setCompleted] = useState(finalWorldCompleted);
   const [completionOpen, setCompletionOpen] = useState(false);
@@ -470,7 +566,7 @@ export function FinalWorldExperience({ initialLetter, finalWorldCompleted }: { i
         <div className="final-world-flowers float-object" aria-hidden="true"><i /><i /><i /></div>
         <div className="final-world-ink float-object" aria-hidden="true"><i /></div>
         {initialLetter.audience === "author"
-          ? <AuthorExperience initialLetter={initialLetter} />
+          ? <AuthorExperience initialLetter={initialLetter} initialRecipientReady={initialRecipientReady} />
           : <RecipientExperience letter={initialLetter} />}
       </section>
       <div className="final-world-fireflies" aria-hidden="true">{Array.from({ length: 10 }, (_, index) => <i key={index} />)}</div>
