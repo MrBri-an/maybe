@@ -36,7 +36,7 @@ function GalleryJourneyPanel({ alreadyCompleted }: { alreadyCompleted: boolean }
     return <RoomCompletionPanel
       title="Ready for the next memory?"
       message="This Gallery will remain open for every photograph and video you decide to keep here together."
-      primary={<Link href="/?view=world" prefetch>Continue the journey</Link>}
+      primary={<Link href="/her-universe" prefetch>Continue the journey</Link>}
     />;
   }
 
@@ -48,9 +48,9 @@ function GalleryJourneyPanel({ alreadyCompleted }: { alreadyCompleted: boolean }
     try {
       const result = await completeGalleryJourney();
       if (result.ok) {
-        router.replace("/?view=world");
+        router.replace("/her-universe");
         fallback.current = setTimeout(() => {
-          if (window.location.pathname === "/gallery") window.location.assign("/?view=world");
+          if (window.location.pathname === "/gallery") window.location.assign("/her-universe");
         }, 1500);
         return;
       }

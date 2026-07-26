@@ -5,17 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { completeLibraryJourney } from "@/app/library/progression-actions";
 
-export function RoomCompletionPanel({ title, message, primary, secondaryHref = "/?view=world", children }: {
+export function RoomCompletionPanel({ title, message, primary, secondary, secondaryHref = "/?view=world", children }: {
   title: string;
   message: string;
   primary: ReactNode;
+  secondary?: ReactNode;
   secondaryHref?: string;
   children?: ReactNode;
 }) {
   return (
     <section className="room-completion-panel">
       <span aria-hidden="true">✦</span>
-      <div><h2>{title}</h2><p>{message}</p>{children}<div className="room-completion-actions">{primary}<Link href={secondaryHref}>Return to World</Link></div></div>
+      <div><h2>{title}</h2><p>{message}</p>{children}<div className="room-completion-actions">{primary}{secondary}<Link href={secondaryHref}>Return to World</Link></div></div>
     </section>
   );
 }

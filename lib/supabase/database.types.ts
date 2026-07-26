@@ -300,6 +300,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      her_universe_objects: {
+        Row: { id: string; slug: string; object_type: "sun" | "moon" | "galaxy" | "planet" | "nebula" | "constellation" | "ocean_moon" | "north_star" | "star"; name: string; caption: string; visual_variant: string; sort_order: number; is_active: boolean; created_at: string };
+        Insert: { id?: string; slug: string; object_type: "sun" | "moon" | "galaxy" | "planet" | "nebula" | "constellation" | "ocean_moon" | "north_star" | "star"; name: string; caption: string; visual_variant: string; sort_order: number; is_active?: boolean; created_at?: string };
+        Update: { slug?: string; object_type?: "sun" | "moon" | "galaxy" | "planet" | "nebula" | "constellation" | "ocean_moon" | "north_star" | "star"; name?: string; caption?: string; visual_variant?: string; sort_order?: number; is_active?: boolean };
+        Relationships: [];
+      };
+      her_universe_messages: {
+        Row: { id: string; object_id: string; author_user_id: string; body: string; display_order: number; animation_variant: "drift" | "orbit" | "glow" | "rise"; created_at: string; updated_at: string; archived_at: string | null };
+        Insert: { id?: string; object_id: string; author_user_id: string; body: string; display_order?: number; animation_variant?: "drift" | "orbit" | "glow" | "rise"; created_at?: string; updated_at?: string; archived_at?: string | null };
+        Update: { body?: string; display_order?: number; animation_variant?: "drift" | "orbit" | "glow" | "rise"; archived_at?: string | null; updated_at?: string };
+        Relationships: [];
+      };
+      her_universe_object_visits: {
+        Row: { object_id: string; user_id: string; visit_count: number; first_visited_at: string; last_visited_at: string };
+        Insert: { object_id: string; user_id: string; visit_count?: number; first_visited_at?: string; last_visited_at?: string };
+        Update: { visit_count?: number; last_visited_at?: string };
+        Relationships: [];
+      };
+      her_universe_message_reactions: {
+        Row: { message_id: string; user_id: string; reaction: "star" | "heart" | "moon" | "spark"; created_at: string; updated_at: string };
+        Insert: { message_id: string; user_id: string; reaction: "star" | "heart" | "moon" | "spark"; created_at?: string; updated_at?: string };
+        Update: { reaction?: "star" | "heart" | "moon" | "spark"; updated_at?: string };
+        Relationships: [];
+      };
+      her_universe_message_favourites: {
+        Row: { message_id: string; user_id: string; created_at: string };
+        Insert: { message_id: string; user_id: string; created_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      her_universe_private_responses: {
+        Row: { id: string; object_id: string; user_id: string; body: string; created_at: string; updated_at: string; archived_at: string | null };
+        Insert: { id?: string; object_id: string; user_id: string; body: string; created_at?: string; updated_at?: string; archived_at?: string | null };
+        Update: { body?: string; updated_at?: string; archived_at?: string | null };
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -323,8 +359,9 @@ export type Database = {
           radio_completed_at: string | null;
           question_garden_completed_at: string | null;
           gallery_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
-          last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
+          her_universe_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
         };
@@ -350,8 +387,9 @@ export type Database = {
           radio_completed_at?: string | null;
           question_garden_completed_at?: string | null;
           gallery_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
-          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
+          her_universe_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -376,8 +414,9 @@ export type Database = {
           radio_completed_at?: string | null;
           question_garden_completed_at?: string | null;
           gallery_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery";
-          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "our-journey" | "maybe-days" | "our-corner" | "open-when" | null;
+          her_universe_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };
         Relationships: [];

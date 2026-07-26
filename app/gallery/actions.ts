@@ -288,7 +288,7 @@ export async function completeGalleryJourney() {
   const result = await persistGalleryCompletion();
   if (result.ok) {
     after(async () => {
-      const saved = await saveWorldDestination("our-journey");
+      const saved = await saveWorldDestination("her-universe");
       if (!saved) console.error("Gallery completion operation failed", { operation: "save_navigation_metadata" });
     });
     return result;
