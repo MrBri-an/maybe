@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   completeFinalWorldJourney,
   openFinalLetter,
@@ -15,6 +15,28 @@ import { JourneyProgressMenu } from "@/features/progression/journey-progress-men
 
 const DEFAULT_TITLE = "The World I Can Give You";
 const AUTOSAVE_DELAY = 900;
+const STAR_LAYERS = [52, 28, 12] as const;
+const FALLING_BLOOMS = 16;
+
+function seededStyle(index: number, layer: number): CSSProperties {
+  return {
+    "--x": `${(index * 37 + layer * 17) % 101}%`,
+    "--y": `${(index * 61 + layer * 29) % 97}%`,
+    "--delay": `${-((index * 1.37 + layer) % 11).toFixed(2)}s`,
+    "--duration": `${(4.6 + ((index * 13 + layer * 7) % 48) / 10).toFixed(1)}s`,
+  } as CSSProperties;
+}
+
+function bloomStyle(index: number): CSSProperties {
+  return {
+    "--x": `${(index * 43 + 7) % 101}%`,
+    "--y": `${8 + (index * 31) % 82}%`,
+    "--drift": `${15 + (index * 17) % 41}px`,
+    "--turn": `${80 + (index * 29) % 161}deg`,
+    "--delay": `${-((index * 1.11) % 17).toFixed(2)}s`,
+    "--duration": `${10 + (index * 7) % 9}s`,
+  } as CSSProperties;
+}
 
 const IMPORTANT_LINES = [
   "you are worth the thought.",
@@ -77,11 +99,14 @@ function LetterPaper({
 function Envelope({ active = false, opening = false }: { active?: boolean; opening?: boolean }) {
   return (
     <article className={`final-world-envelope ${active ? "is-ready" : ""} ${opening ? "is-opening" : ""}`} aria-label="One sealed envelope for Jessica from Brian">
-      <span className="envelope-flap" aria-hidden="true" />
-      <span className="envelope-wax" aria-hidden="true"><i /><i /></span>
       <span className="envelope-paper" aria-hidden="true" />
-      <p>For Jessica</p>
-      <small>From Brian</small>
+      <span className="envelope-flap" aria-hidden="true" />
+      <span className="envelope-fold is-left" aria-hidden="true" />
+      <span className="envelope-fold is-right" aria-hidden="true" />
+      <span className="envelope-botanical is-top" aria-hidden="true">❧</span>
+      <span className="envelope-botanical is-bottom" aria-hidden="true">❧</span>
+      <span className="envelope-wax" aria-hidden="true"><i /><i /><b>♥</b></span>
+      <div className="envelope-label"><p>For Jessica</p><small>From Brian</small></div>
     </article>
   );
 }
@@ -98,10 +123,12 @@ function AuthorExperience({
   const [title, setTitle] = useState(initialDraft?.title ?? DEFAULT_TITLE);
   const [body, setBody] = useState(initialDraft?.body ?? "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [sealing, setSealing] = useState(false);
   const [message, setMessage] = useState("");
   const timerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
   const queuedRef = useRef<{ title: string; body: string; revision: number } | null>(null);
+  const idleResolversRef = useRef<Array<() => void>>([]);
   const revisionRef = useRef(0);
   const mountedRef = useRef(true);
   const actionLockRef = useRef(false);
@@ -124,7 +151,7 @@ function AuthorExperience({
             setSaveState("saved");
             setMessage("Draft saved privately.");
           }
-        } else {
+        } else if (current.revision === revisionRef.current) {
           setSaveState("error");
           setMessage(result.error);
         }
@@ -134,7 +161,12 @@ function AuthorExperience({
       current = queued && queued.revision > current.revision ? queued : null;
     }
     inFlightRef.current = false;
+    idleResolversRef.current.splice(0).forEach((resolve) => resolve());
   }, []);
+
+  const waitForSaveIdle = useCallback(() => inFlightRef.current
+    ? new Promise<void>((resolve) => idleResolversRef.current.push(resolve))
+    : Promise.resolve(), []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -172,16 +204,8 @@ function AuthorExperience({
     actionLockRef.current = true;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     revisionRef.current += 1;
-    setSaveState("saving");
-    const result = await saveFinalLetterDraft({ title, body });
-    if (result.ok) {
-      setLetter(result.letter as Extract<FinalLetterView, { audience: "author" }>);
-      setSaveState("saved");
-      setMessage("Draft saved privately.");
-    } else {
-      setSaveState("error");
-      setMessage(result.error);
-    }
+    await runSave({ title, body, revision: revisionRef.current });
+    await waitForSaveIdle();
     actionLockRef.current = false;
   };
 
@@ -189,15 +213,23 @@ function AuthorExperience({
     if (actionLockRef.current || !title.trim() || !body.trim()) return;
     if (!window.confirm("Seal this letter for Jessica? Normal editing will no longer be available.")) return;
     actionLockRef.current = true;
+    setSealing(true);
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     revisionRef.current += 1;
+    queuedRef.current = null;
+    await waitForSaveIdle();
     const result = await sealFinalLetter({ title, body });
     if (result.ok) {
       setLetter(result.letter as Extract<FinalLetterView, { audience: "author" }>);
       setEditing(false);
       setPreview(false);
       setMessage("The letter is sealed and waiting for Jessica.");
-    } else setMessage(result.error);
+      setSaveState("saved");
+    } else {
+      setSaveState("error");
+      setMessage(result.error);
+    }
+    setSealing(false);
     actionLockRef.current = false;
   };
 
@@ -239,16 +271,21 @@ function AuthorExperience({
     </section>;
   }
 
+  const incompleteReason = !title.trim() ? "Add a title before sealing." : !body.trim() ? "Write the letter before sealing." : "";
   return <section className="final-letter-editor" aria-label="Private final letter editor">
-    <header><div><p>Private draft</p><h2>Write the letter only Jessica will read.</h2></div><span className={`is-${saveState}`} role="status">{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : "Private"}</span></header>
-    <label>Title<input value={title} onChange={(event) => { setTitle(event.target.value); setSaveState("idle"); }} maxLength={160} autoComplete="off" /></label>
-    <label>Letter body<textarea value={body} onChange={(event) => { setBody(event.target.value); setSaveState("idle"); }} maxLength={12000} rows={16} placeholder="Write what belongs only here…" /></label>
+    <header><div><p>Private writing desk</p><h2>A letter, held only here.</h2></div><span className={`is-${saveState}`} role="status">{sealing ? "Sealing…" : saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : "Private draft"}</span></header>
+    <div className="final-stationery-sheet">
+    <span className="final-stationery-flourish" aria-hidden="true">❧</span>
+    <label>Title<input value={title} onChange={(event) => { setTitle(event.target.value); setSaveState("idle"); setMessage(""); }} maxLength={160} autoComplete="off" /></label>
+    <label>Letter body<textarea value={body} onChange={(event) => { setBody(event.target.value); setSaveState("idle"); setMessage(""); }} maxLength={12000} rows={14} placeholder="Write what belongs only here…" /></label>
     <div className="final-letter-count">{body.length.toLocaleString()} / 12,000</div>
-    <div className="final-letter-controls">
-      <button type="button" onClick={saveNow} disabled={!title.trim() || !body.trim() || saveState === "saving"}>Save draft</button>
-      <button type="button" onClick={() => setPreview(true)} disabled={!body.trim()}>Preview</button>
-      <button type="button" className="is-primary" onClick={seal} disabled={!title.trim() || !body.trim() || saveState === "saving"}>Seal letter</button>
     </div>
+    <div className="final-letter-controls">
+      <button type="button" onClick={saveNow} disabled={!title.trim() || !body.trim() || sealing}>Save draft</button>
+      <button type="button" onClick={() => setPreview(true)} disabled={!body.trim()}>Preview</button>
+      <button type="button" className="is-primary" onClick={seal} disabled={Boolean(incompleteReason) || sealing} title={incompleteReason || "Save the latest words and seal the letter"}>Seal letter</button>
+    </div>
+    {incompleteReason ? <p className="final-seal-reason">{incompleteReason}</p> : null}
     {message ? <p className="final-letter-message" role={saveState === "error" ? "alert" : "status"}>{message}</p> : null}
   </section>;
 }
@@ -405,7 +442,15 @@ export function FinalWorldExperience({ initialLetter, finalWorldCompleted }: { i
 
   return (
     <main className={`final-world-room ${hidden ? "is-paused" : ""} ${completed ? "is-journey-complete" : ""} ${completionMoment ? "is-completing" : ""}`}>
-      <div className="final-world-sky" aria-hidden="true"><i /><i /><i /><span className="final-world-moon" /></div>
+      <div className="final-world-sky" aria-hidden="true"><span className="final-world-moon" /></div>
+      <div className="final-world-stars" aria-hidden="true">
+        {STAR_LAYERS.map((count, layer) => <div className={`star-layer is-layer-${layer}`} key={layer}>
+          {Array.from({ length: count }, (_, index) => <i className={layer === 2 && index % 3 === 0 ? "is-cross" : ""} style={seededStyle(index, layer)} key={index} />)}
+        </div>)}
+      </div>
+      <div className="final-world-falling-blooms" aria-hidden="true">
+        {Array.from({ length: FALLING_BLOOMS }, (_, index) => <i className={index % 5 === 0 ? "is-flower" : `is-petal is-tone-${index % 4}`} style={bloomStyle(index)} key={index}>{index % 5 === 0 ? "✿" : ""}</i>)}
+      </div>
       <div className="final-world-constellations" aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</div>
       <div className="final-world-curtain" aria-hidden="true" />
       <header className="final-world-toolbar">

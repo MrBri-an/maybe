@@ -10,6 +10,23 @@ const draftSchema = z.object({
   body: z.string().trim().min(1).max(12000),
 });
 
+type AuthorContext = NonNullable<Awaited<ReturnType<typeof authorizeFinalWorld>>>;
+
+async function authorizeLetterAuthor(): Promise<AuthorContext | null> {
+  const context = await authorizeFinalWorld();
+  if (!context || context.access.member.role !== "owner") return null;
+
+  const { data: membership, error } = await context.admin
+    .from("app_members")
+    .select("user_id,role,active")
+    .eq("user_id", context.access.user.id)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error || membership?.role !== "owner") return null;
+  return context;
+}
+
 export type FinalLetterView =
   | { audience: "author"; status: "none" }
   | {
@@ -80,7 +97,7 @@ export async function loadFinalLetterView(): Promise<FinalLetterView | null> {
 }
 
 async function getAuthorizedRpc(role: "owner" | "guest") {
-  const authorized = await authorizeFinalWorld();
+  const authorized = role === "owner" ? await authorizeLetterAuthor() : await authorizeFinalWorld();
   if (!authorized || authorized.access.member.role !== role) return null;
   const supabase = await createServerSupabaseClient();
   return supabase ? { authorized, supabase } : null;
@@ -91,16 +108,25 @@ export async function saveFinalLetterDraft(input: unknown): Promise<LetterAction
   if (!parsed.success) return { ok: false, error: "Add a title and letter of no more than 12,000 characters." };
   const context = await getAuthorizedRpc("owner");
   if (!context) return { ok: false, error: "This private writing desk is available only to its author." };
-  const { error } = await context.supabase.rpc("save_final_world_letter_draft", {
+  const { data, error } = await context.supabase.rpc("save_final_world_letter_draft", {
     p_title: parsed.data.title,
     p_body: parsed.data.body,
   });
-  if (error) {
-    console.error("Final letter operation failed", { operation: "save_draft", code: error.code });
+  if (error || !data || data.author_user_id !== context.authorized.access.user.id || data.status !== "draft") {
+    if (error) console.error("Final letter operation failed", { operation: "save_draft", code: error.code });
     return { ok: false, error: "Your draft could not be saved. Your words are still here." };
   }
-  const letter = await loadFinalLetterViewFromContext(context.authorized);
-  return letter ? { ok: true, letter } : { ok: false, error: "Your draft was saved, but its status could not be refreshed." };
+  return {
+    ok: true,
+    letter: {
+      audience: "author",
+      status: "draft",
+      title: data.title,
+      body: data.body,
+      sealedAt: data.sealed_at,
+      openedAt: data.opened_at,
+    },
+  };
 }
 
 export async function sealFinalLetter(input: unknown): Promise<LetterActionResult> {
@@ -108,30 +134,47 @@ export async function sealFinalLetter(input: unknown): Promise<LetterActionResul
   if (!parsed.success) return { ok: false, error: "Add a complete title and letter before sealing it." };
   const context = await getAuthorizedRpc("owner");
   if (!context) return { ok: false, error: "This private writing desk is available only to its author." };
-  const { data: current } = await context.authorized.admin.from("final_world_letter")
-    .select("id,status,title,body").neq("status", "withdrawn").limit(1).maybeSingle();
-  if (!current) {
-    return { ok: false, error: "Save a complete title and letter before sealing it." };
+  const { data: existing, error: existingError } = await context.authorized.admin.from("final_world_letter")
+    .select("id,status,author_user_id").neq("status", "withdrawn").limit(1).maybeSingle();
+  if (existingError) return { ok: false, error: "The letter could not be checked before sealing. Please try again." };
+  if (existing && existing.author_user_id !== context.authorized.access.user.id) {
+    return { ok: false, error: "This private letter belongs to its approved author." };
   }
-  if (current.status === "draft") {
-    const { error: saveError } = await context.supabase.rpc("save_final_world_letter_draft", {
-      p_title: parsed.data.title,
-      p_body: parsed.data.body,
-    });
-    if (saveError) {
-      console.error("Final letter operation failed", { operation: "save_before_seal", code: saveError.code });
-      return { ok: false, error: "The latest words could not be saved, so the letter was not sealed." };
-    }
-    const { error } = await context.supabase.rpc("seal_final_world_letter", { p_letter_id: current.id });
-    if (error) {
-      console.error("Final letter operation failed", { operation: "seal", code: error.code });
-      return { ok: false, error: "The letter could not be sealed. Please try again." };
-    }
-  } else if (current.status !== "sealed" && current.status !== "opened") {
+  if (existing?.status === "sealed" || existing?.status === "opened") {
+    const letter = await loadFinalLetterViewFromContext(context.authorized);
+    return letter.status === "sealed" || letter.status === "opened"
+      ? { ok: true, letter }
+      : { ok: false, error: "The sealed letter could not be refreshed." };
+  }
+  if (existing && existing.status !== "draft") {
     return { ok: false, error: "This letter is no longer available to seal." };
   }
-  const letter = await loadFinalLetterViewFromContext(context.authorized);
-  return letter ? { ok: true, letter } : { ok: false, error: "The letter was sealed, but its status could not be refreshed." };
+
+  const { data: saved, error: saveError } = await context.supabase.rpc("save_final_world_letter_draft", {
+      p_title: parsed.data.title,
+      p_body: parsed.data.body,
+  });
+  if (saveError || !saved || saved.author_user_id !== context.authorized.access.user.id || saved.status !== "draft") {
+    if (saveError) console.error("Final letter operation failed", { operation: "save_before_seal", code: saveError.code });
+    return { ok: false, error: "The latest words could not be saved, so the letter was not sealed." };
+  }
+  const { data: sealed, error } = await context.supabase.rpc("seal_final_world_letter", { p_letter_id: saved.id });
+  if (error || !sealed || sealed.author_user_id !== context.authorized.access.user.id
+    || (sealed.status !== "sealed" && sealed.status !== "opened")) {
+    if (error) console.error("Final letter operation failed", { operation: "seal", code: error.code });
+    return { ok: false, error: "The letter could not be sealed. Your latest words remain saved as a draft." };
+  }
+  return {
+    ok: true,
+    letter: {
+      audience: "author",
+      status: sealed.status,
+      title: sealed.title,
+      body: sealed.body,
+      sealedAt: sealed.sealed_at,
+      openedAt: sealed.opened_at,
+    },
+  };
 }
 
 export async function withdrawFinalLetter(): Promise<LetterActionResult> {
