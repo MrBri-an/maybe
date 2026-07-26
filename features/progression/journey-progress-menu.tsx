@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { JOURNEY_ROOMS, getJourneyRoomState, getJourneySummary, type JourneyRoomState } from "@/lib/progression/rooms";
 
-export function JourneyProgressMenu({ storybookCompleted, libraryCompleted, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted?: boolean; radioCompleted?: boolean; questionGardenCompleted?: boolean; galleryCompleted?: boolean; herUniverseCompleted?: boolean; maybeDaysCompleted?: boolean }) {
+export function JourneyProgressMenu({ storybookCompleted, libraryCompleted, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted?: boolean; radioCompleted?: boolean; questionGardenCompleted?: boolean; galleryCompleted?: boolean; herUniverseCompleted?: boolean; maybeDaysCompleted?: boolean; ourCornerCompleted?: boolean }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted);
+  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted);
 
   useEffect(() => {
     if (!open) return;
@@ -56,9 +56,9 @@ export function JourneyProgressMenu({ storybookCompleted, libraryCompleted, puzz
         <header><strong>{summary.message}</strong>{summary.completed > 0 ? <span>{summary.completed} completed</span> : null}</header>
         <ol>
           {JOURNEY_ROOMS.map((room) => {
-            const state = getJourneyRoomState(room.slug, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted);
+            const state = getJourneyRoomState(room.slug, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted);
             const displayState = state === "current" ? "available" : state;
-            const href = room.slug === "storybook" ? "/story" : room.slug === "library" && storybookCompleted ? "/library" : room.slug === "puzzle-room" && libraryCompleted ? "/puzzles" : room.slug === "jessicas-radio" && puzzleRoomCompleted ? "/radio" : room.slug === "question-garden" && radioCompleted ? "/question-garden" : room.slug === "gallery" && questionGardenCompleted ? "/gallery" : room.slug === "her-universe" && galleryCompleted ? "/her-universe" : room.slug === "maybe-days" && herUniverseCompleted ? "/maybe-days" : undefined;
+            const href = room.slug === "storybook" ? "/story" : room.slug === "library" && storybookCompleted ? "/library" : room.slug === "puzzle-room" && libraryCompleted ? "/puzzles" : room.slug === "jessicas-radio" && puzzleRoomCompleted ? "/radio" : room.slug === "question-garden" && radioCompleted ? "/question-garden" : room.slug === "gallery" && questionGardenCompleted ? "/gallery" : room.slug === "her-universe" && galleryCompleted ? "/her-universe" : room.slug === "maybe-days" && herUniverseCompleted ? "/maybe-days" : room.slug === "our-corner" && maybeDaysCompleted ? "/our-corner" : undefined;
             const description = room.slug === "storybook"
               ? "The story of the screenshot that started everything."
               : room.slug === "library"
@@ -76,7 +76,7 @@ export function JourneyProgressMenu({ storybookCompleted, libraryCompleted, puzz
                   : room.slug === "maybe-days" && herUniverseCompleted
                     ? "A private jar of things you can enjoy together from anywhere."
                   : room.slug === "our-corner" && maybeDaysCompleted
-                    ? "A calm private conversation space. This next destination is still being built."
+                    ? "A quiet private room for the conversations that belong only to you both."
                   : "This destination will open later as the world continues to grow.";
             return <JourneyEntry key={room.slug} title={room.name} state={displayState} description={description} href={href} onSelect={() => setOpen(false)} />;
           })}

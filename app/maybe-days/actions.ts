@@ -1,7 +1,6 @@
 "use server";
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { after } from "next/server";
 import { z } from "zod";
 import { authorizeMaybeDays } from "@/lib/maybe-days/server";
 import { persistMaybeDaysCompletion, saveWorldDestination } from "@/lib/progression/user-progress";
@@ -370,13 +369,7 @@ export async function completeMaybeDaysJourney() {
   const authorized = await authorizeMaybeDays();
   if (!authorized) return { ok: false as const, error: "Please sign in with an approved account to continue." };
   const result = await persistMaybeDaysCompletion();
-  if (result.ok) {
-    after(async () => {
-      const saved = await saveWorldDestination("our-corner");
-      if (!saved) console.error("Maybe Days completion operation failed", { operation: "save_navigation_metadata" });
-    });
-    return result;
-  }
+  if (result.ok) return result;
   return {
     ...result,
     error: result.reason === "unauthorized"
@@ -385,4 +378,10 @@ export async function completeMaybeDaysJourney() {
         ? "Complete the earlier journey rooms before continuing."
         : "The next step could not be saved. Please try again.",
   };
+}
+
+export async function recordMaybeDaysNextDestination() {
+  const authorized = await authorizeMaybeDays();
+  if (!authorized) return false;
+  return saveWorldDestination("our-corner");
 }

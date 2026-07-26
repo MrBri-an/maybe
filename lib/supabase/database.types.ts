@@ -366,6 +366,60 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      our_corner_conversations: {
+        Row: { id: string; created_at: string; updated_at: string; is_active: boolean };
+        Insert: { id?: string; created_at?: string; updated_at?: string; is_active?: boolean };
+        Update: { updated_at?: string; is_active?: boolean };
+        Relationships: [];
+      };
+      our_corner_members: {
+        Row: { conversation_id: string; user_id: string; joined_at: string; last_read_at: string | null; last_seen_message_id: string | null };
+        Insert: { conversation_id: string; user_id: string; joined_at?: string; last_read_at?: string | null; last_seen_message_id?: string | null };
+        Update: { last_read_at?: string | null; last_seen_message_id?: string | null };
+        Relationships: [];
+      };
+      our_corner_messages: {
+        Row: { id: string; conversation_id: string; sender_user_id: string; client_message_id: string; message_kind: "text" | "voice" | "shared"; body: string | null; reply_to_message_id: string | null; shared_type: "song" | "question" | "activity" | "memory" | null; shared_reference: string | null; created_at: string; updated_at: string; edited_at: string | null; archived_at: string | null };
+        Insert: { id?: string; conversation_id: string; sender_user_id: string; client_message_id: string; message_kind: "text" | "voice" | "shared"; body?: string | null; reply_to_message_id?: string | null; shared_type?: "song" | "question" | "activity" | "memory" | null; shared_reference?: string | null; created_at?: string; updated_at?: string; edited_at?: string | null; archived_at?: string | null };
+        Update: { message_kind?: "text" | "voice" | "shared"; body?: string | null; reply_to_message_id?: string | null; shared_type?: "song" | "question" | "activity" | "memory" | null; shared_reference?: string | null; updated_at?: string; edited_at?: string | null; archived_at?: string | null };
+        Relationships: [];
+      };
+      our_corner_message_hearts: {
+        Row: { message_id: string; user_id: string; created_at: string };
+        Insert: { message_id: string; user_id: string; created_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      our_corner_read_receipts: {
+        Row: { message_id: string; user_id: string; read_at: string };
+        Insert: { message_id: string; user_id: string; read_at?: string };
+        Update: { read_at?: string };
+        Relationships: [];
+      };
+      our_corner_pinned_messages: {
+        Row: { conversation_id: string; message_id: string; pinned_by_user_id: string; pinned_at: string };
+        Insert: { conversation_id: string; message_id: string; pinned_by_user_id: string; pinned_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      our_corner_daily_notes: {
+        Row: { id: string; conversation_id: string; author_user_id: string; note_date: string; body: string; created_at: string; updated_at: string; archived_at: string | null };
+        Insert: { id?: string; conversation_id: string; author_user_id: string; note_date?: string; body: string; created_at?: string; updated_at?: string; archived_at?: string | null };
+        Update: { note_date?: string; body?: string; updated_at?: string; archived_at?: string | null };
+        Relationships: [];
+      };
+      our_corner_temporary_moods: {
+        Row: { conversation_id: string; user_id: string; mood: string; created_at: string; expires_at: string };
+        Insert: { conversation_id: string; user_id: string; mood: string; created_at?: string; expires_at: string };
+        Update: { mood?: string; expires_at?: string };
+        Relationships: [];
+      };
+      our_corner_voice_notes: {
+        Row: { message_id: string; storage_object_path: string; mime_type: "audio/webm" | "audio/mp4" | "audio/x-m4a" | "audio/m4a" | "audio/ogg"; size_bytes: number; duration_seconds: number; created_at: string };
+        Insert: { message_id: string; storage_object_path: string; mime_type: "audio/webm" | "audio/mp4" | "audio/x-m4a" | "audio/m4a" | "audio/ogg"; size_bytes: number; duration_seconds: number; created_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -391,7 +445,8 @@ export type Database = {
           gallery_completed_at: string | null;
           her_universe_completed_at: string | null;
           maybe_days_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
+          our_corner_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
           last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
@@ -420,7 +475,8 @@ export type Database = {
           gallery_completed_at?: string | null;
           her_universe_completed_at?: string | null;
           maybe_days_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
+          our_corner_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
@@ -448,7 +504,8 @@ export type Database = {
           gallery_completed_at?: string | null;
           her_universe_completed_at?: string | null;
           maybe_days_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
+          our_corner_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };

@@ -23,7 +23,7 @@ const scenes = [
 
 const rooms = JOURNEY_ROOMS;
 
-type WorldExperienceProps = { logoutAction: () => Promise<void>; initialView?: "opening" | "world"; storybookCompleted?: boolean; libraryCompleted?: boolean; puzzleRoomCompleted?: boolean; radioCompleted?: boolean; questionGardenCompleted?: boolean; galleryCompleted?: boolean; herUniverseCompleted?: boolean; maybeDaysCompleted?: boolean; initialDestination?: string | null };
+type WorldExperienceProps = { logoutAction: () => Promise<void>; initialView?: "opening" | "world"; storybookCompleted?: boolean; libraryCompleted?: boolean; puzzleRoomCompleted?: boolean; radioCompleted?: boolean; questionGardenCompleted?: boolean; galleryCompleted?: boolean; herUniverseCompleted?: boolean; maybeDaysCompleted?: boolean; ourCornerCompleted?: boolean; initialDestination?: string | null };
 type SceneVisual = (typeof scenes)[number]["visual"];
 
 function StoryVisual({ kind, paused }: { kind: SceneVisual; paused: boolean }) {
@@ -41,7 +41,7 @@ function StoryVisual({ kind, paused }: { kind: SceneVisual; paused: boolean }) {
   );
 }
 
-function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted }: { selected: number; onSelect: (index: number) => void; reduceMotion: boolean; storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean; questionGardenCompleted: boolean; galleryCompleted: boolean; herUniverseCompleted: boolean; maybeDaysCompleted: boolean }) {
+function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted }: { selected: number; onSelect: (index: number) => void; reduceMotion: boolean; storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean; questionGardenCompleted: boolean; galleryCompleted: boolean; herUniverseCompleted: boolean; maybeDaysCompleted: boolean; ourCornerCompleted: boolean }) {
   const router = useRouter();
   const [interacting, setInteracting] = useState(false);
   const path = rooms.map((room) => `${room.x},${room.y}`).join(" ");
@@ -64,7 +64,7 @@ function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCo
         <div className="globe-heart" aria-hidden="true"><span>✦</span><small>Maybe</small></div>
         {rooms.map((room, index) => {
           return (
-          <button key={room.name} type="button" className={`globe-node ${((index === 0 && storybookCompleted) || (index === 1 && libraryCompleted) || (index === 2 && puzzleRoomCompleted) || (index === 3 && radioCompleted) || (index === 4 && questionGardenCompleted) || (index === 5 && galleryCompleted) || (index === 6 && herUniverseCompleted)) ? "is-completed" : ""} ${((index === 0 && !storybookCompleted) || (index === 1 && storybookCompleted && !libraryCompleted) || (index === 2 && libraryCompleted && !puzzleRoomCompleted) || (index === 3 && puzzleRoomCompleted && !radioCompleted) || (index === 4 && radioCompleted && !questionGardenCompleted) || (index === 5 && questionGardenCompleted && !galleryCompleted) || (index === 6 && galleryCompleted && !herUniverseCompleted) || (index === 7 && herUniverseCompleted)) ? "is-current-destination" : ""}`} style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={index === 0 ? storybookCompleted ? "Storybook, completed and available" : "Storybook, current destination" : index === 1 ? libraryCompleted ? "Library, completed and available" : storybookCompleted ? "Library, current destination and available" : "Library, locked." : index === 2 ? puzzleRoomCompleted ? "Puzzle Room, completed and available" : libraryCompleted ? "Puzzle Room, current destination and available" : "Puzzle Room, locked." : index === 3 ? radioCompleted ? "Jessica’s Radio, completed and available" : puzzleRoomCompleted ? "Jessica’s Radio, current destination and available" : "Jessica’s Radio, coming later" : index === 4 ? questionGardenCompleted ? "Question Garden, completed and available" : radioCompleted ? "Question Garden, current destination and available" : "Question Garden, coming later" : index === 5 ? galleryCompleted ? "Gallery, completed and available" : questionGardenCompleted ? "Gallery, current destination and available" : "Gallery, coming later" : index === 6 ? herUniverseCompleted ? "Her Universe, completed and available" : galleryCompleted ? "Her Universe, current destination and available" : "Her Universe, coming later" : index === 7 && herUniverseCompleted ? "Maybe Days, available" : `${room.name}, coming later.`} onClick={() => onSelect(index)} onPointerEnter={() => { if (room.route && index <= 7) router.prefetch(room.route); }} disabled={index > 7 || (index === 1 && !storybookCompleted) || (index === 2 && !libraryCompleted) || (index === 3 && !puzzleRoomCompleted) || (index === 4 && !radioCompleted) || (index === 5 && !questionGardenCompleted) || (index === 6 && !galleryCompleted) || (index === 7 && !herUniverseCompleted)}>
+          <button key={room.name} type="button" className={`globe-node ${((index === 0 && storybookCompleted) || (index === 1 && libraryCompleted) || (index === 2 && puzzleRoomCompleted) || (index === 3 && radioCompleted) || (index === 4 && questionGardenCompleted) || (index === 5 && galleryCompleted) || (index === 6 && herUniverseCompleted) || (index === 7 && maybeDaysCompleted) || (index === 8 && ourCornerCompleted)) ? "is-completed" : ""} ${((index === 0 && !storybookCompleted) || (index === 1 && storybookCompleted && !libraryCompleted) || (index === 2 && libraryCompleted && !puzzleRoomCompleted) || (index === 3 && puzzleRoomCompleted && !radioCompleted) || (index === 4 && radioCompleted && !questionGardenCompleted) || (index === 5 && questionGardenCompleted && !galleryCompleted) || (index === 6 && galleryCompleted && !herUniverseCompleted) || (index === 7 && herUniverseCompleted && !maybeDaysCompleted) || (index === 8 && maybeDaysCompleted && !ourCornerCompleted) || (index === 9 && ourCornerCompleted)) ? "is-current-destination" : ""}`} style={{ "--node-x": `${room.x}%`, "--node-y": `${room.y}%` } as CSSProperties} aria-pressed={selected === index} aria-label={index === 7 ? maybeDaysCompleted ? "Maybe Days, completed and available" : "Maybe Days, available" : index === 8 ? ourCornerCompleted ? "Our Corner, completed and available" : maybeDaysCompleted ? "Our Corner, current destination and available" : "Our Corner, coming later" : index === 9 && ourCornerCompleted ? "Open When, next destination, not yet available" : `${room.name}, available`} onClick={() => onSelect(index)} onPointerEnter={() => { if (room.route && index <= 8) router.prefetch(room.route); }} disabled={index > 8 || (index === 1 && !storybookCompleted) || (index === 2 && !libraryCompleted) || (index === 3 && !puzzleRoomCompleted) || (index === 4 && !radioCompleted) || (index === 5 && !questionGardenCompleted) || (index === 6 && !galleryCompleted) || (index === 7 && !herUniverseCompleted) || (index === 8 && !maybeDaysCompleted)}>
             <span aria-hidden="true" />
             <strong className={index % 2 === 0 ? "node-label-right" : "node-label-left"}>{room.name}</strong>
           </button>
@@ -74,10 +74,10 @@ function Globe({ selected, onSelect, reduceMotion, storybookCompleted, libraryCo
   );
 }
 
-function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean; questionGardenCompleted: boolean; galleryCompleted: boolean; herUniverseCompleted: boolean; maybeDaysCompleted: boolean }) {
+function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted }: { storybookCompleted: boolean; libraryCompleted: boolean; puzzleRoomCompleted: boolean; radioCompleted: boolean; questionGardenCompleted: boolean; galleryCompleted: boolean; herUniverseCompleted: boolean; maybeDaysCompleted: boolean; ourCornerCompleted: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
-  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted);
-  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted);
+  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted);
+  const summary = getJourneySummary(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted);
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setCollapsed(window.localStorage.getItem("maybe-world-guide-collapsed") === "1"));
     return () => window.cancelAnimationFrame(frame);
@@ -104,7 +104,7 @@ function ProgressionGuide({ storybookCompleted, libraryCompleted, puzzleRoomComp
   );
 }
 
-function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted }: {
+function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted }: {
   selectedRoom: number;
   selected: (typeof rooms)[number];
   storybookCompleted: boolean;
@@ -115,6 +115,7 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
   galleryCompleted: boolean;
   herUniverseCompleted: boolean;
   maybeDaysCompleted: boolean;
+  ourCornerCompleted: boolean;
 }) {
   const completed = selectedRoom === 0 && storybookCompleted
     || selectedRoom === 1 && libraryCompleted
@@ -123,7 +124,8 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
     || selectedRoom === 4 && questionGardenCompleted
     || selectedRoom === 5 && galleryCompleted
     || selectedRoom === 6 && herUniverseCompleted
-    || selectedRoom === 7 && maybeDaysCompleted;
+    || selectedRoom === 7 && maybeDaysCompleted
+    || selectedRoom === 8 && ourCornerCompleted;
   const available = selectedRoom === 0
     || selectedRoom === 1 && storybookCompleted
     || selectedRoom === 2 && libraryCompleted
@@ -131,7 +133,8 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
     || selectedRoom === 4 && radioCompleted
     || selectedRoom === 5 && questionGardenCompleted
     || selectedRoom === 6 && galleryCompleted
-    || selectedRoom === 7 && herUniverseCompleted;
+    || selectedRoom === 7 && herUniverseCompleted
+    || selectedRoom === 8 && maybeDaysCompleted;
   const navigation = getJourneyNavigation(selected.slug, {
     storybook: storybookCompleted,
     library: libraryCompleted,
@@ -141,6 +144,7 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
     gallery: galleryCompleted,
     herUniverse: herUniverseCompleted,
     maybeDays: maybeDaysCompleted,
+    ourCorner: ourCornerCompleted,
   });
   const descriptions = [
     storybookCompleted ? "The first story is complete. You can return whenever you like." : "Begin with the story of the screenshot that started everything.",
@@ -151,11 +155,11 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
     questionGardenCompleted ? "A private moonlit gallery for shared images and little films." : "Complete the Question Garden to open this quiet Gallery.",
     galleryCompleted ? "A private constellation of the qualities and details that make her who she is." : "Complete the Gallery to open this celestial world.",
     herUniverseCompleted ? "A private jar of remote activities for feeling closer from wherever you both are." : "Complete Her Universe to open this shared jar.",
-    maybeDaysCompleted ? "The next destination is Our Corner. It is still being built, so this path remains gently closed for now." : "This destination will open later as the world continues to grow.",
+    ourCornerCompleted ? "This private room remains open whenever either of you wants to return." : maybeDaysCompleted ? "A quiet private room for the conversations that belong only to you both." : "Complete Maybe Days to open this shared room.",
   ];
   const entryLabel = selectedRoom === 0 ? "Enter Storybook" : `Enter ${selected.name}`;
   return <aside className="globe-detail" aria-live="polite"><div>
-    <Badge tone={available ? "gold" : "neutral"}>{completed ? "Completed" : available ? "Available" : selectedRoom === 8 && maybeDaysCompleted ? "Next destination" : selectedRoom <= 2 ? "Locked" : "Coming later"}</Badge>
+    <Badge tone={available ? "gold" : "neutral"}>{completed ? "Completed" : available ? "Available" : selectedRoom <= 2 ? "Locked" : "Coming later"}</Badge>
     <h2>{selected.name}</h2>
     <p>{descriptions[selectedRoom] ?? "This destination will open later as the world continues to grow."}</p>
     {completed ? <div className="globe-detail-actions">
@@ -165,7 +169,7 @@ function WorldRoomDetail({ selectedRoom, selected, storybookCompleted, libraryCo
   </div><span aria-hidden="true">{String(selectedRoom + 1).padStart(2, "0")}</span></aside>;
 }
 
-export function WorldExperience({ logoutAction, initialView = "opening", storybookCompleted = false, libraryCompleted = false, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, initialDestination = null }: WorldExperienceProps) {
+export function WorldExperience({ logoutAction, initialView = "opening", storybookCompleted = false, libraryCompleted = false, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false, initialDestination = null }: WorldExperienceProps) {
   const reduceMotion = Boolean(useReducedMotion());
   const router = useRouter();
   const [view, setView] = useState<"opening" | "world">(initialView);
@@ -199,7 +203,8 @@ export function WorldExperience({ logoutAction, initialView = "opening", storybo
     if (questionGardenCompleted) router.prefetch("/gallery");
     if (galleryCompleted) router.prefetch("/her-universe");
     if (herUniverseCompleted) router.prefetch("/maybe-days");
-  }, [galleryCompleted, herUniverseCompleted, libraryCompleted, puzzleRoomCompleted, questionGardenCompleted, radioCompleted, router, storybookCompleted, view]);
+    if (maybeDaysCompleted) router.prefetch("/our-corner");
+  }, [galleryCompleted, herUniverseCompleted, libraryCompleted, maybeDaysCompleted, puzzleRoomCompleted, questionGardenCompleted, radioCompleted, router, storybookCompleted, view]);
 
   const selectRoom = (index: number) => {
     setSelectedRoom(index);
@@ -258,11 +263,11 @@ export function WorldExperience({ logoutAction, initialView = "opening", storybo
               <h1>A world of what may come next.</h1>
               <p>{storybookCompleted ? "Storybook and Library are open. The other destinations remain gently locked." : "Begin with the Storybook. The other destinations remain gently locked."}</p>
               <Button type="button" variant="quiet" size="small" onClick={returnToStory}>Back to story</Button>
-              <JourneyProgressMenu storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} />
+              <JourneyProgressMenu storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} ourCornerCompleted={ourCornerCompleted} />
             </header>
-            <Globe selected={selectedRoom} onSelect={selectRoom} reduceMotion={reduceMotion} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} />
-            <WorldRoomDetail selectedRoom={selectedRoom} selected={selected} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} />
-            <ProgressionGuide storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} />
+            <Globe selected={selectedRoom} onSelect={selectRoom} reduceMotion={reduceMotion} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} ourCornerCompleted={ourCornerCompleted} />
+            <WorldRoomDetail selectedRoom={selectedRoom} selected={selected} storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} ourCornerCompleted={ourCornerCompleted} />
+            <ProgressionGuide storybookCompleted={storybookCompleted} libraryCompleted={libraryCompleted} puzzleRoomCompleted={puzzleRoomCompleted} radioCompleted={radioCompleted} questionGardenCompleted={questionGardenCompleted} galleryCompleted={galleryCompleted} herUniverseCompleted={herUniverseCompleted} maybeDaysCompleted={maybeDaysCompleted} ourCornerCompleted={ourCornerCompleted} />
           </motion.main>
         )}
       </AnimatePresence>

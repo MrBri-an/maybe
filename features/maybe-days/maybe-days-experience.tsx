@@ -12,6 +12,7 @@ import {
   loadMaybeDaysState,
   openMaybeJar,
   pickAnotherMaybeDay,
+  recordMaybeDaysNextDestination,
   setMaybeDayHeart,
   startMaybeDay,
   updateMaybeDayComment,
@@ -59,6 +60,8 @@ export function MaybeDaysExperience({ maybeDaysCompleted: initiallyCompleted }: 
   const actionLock = useRef(false);
   const requestVersion = useRef(0);
   const openingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionLock = useRef(false);
   const returnToJarLock = useRef(false);
   const returnToJarFrame = useRef<number | null>(null);
   const jarSectionRef = useRef<HTMLElement>(null);
@@ -107,6 +110,7 @@ export function MaybeDaysExperience({ maybeDaysCompleted: initiallyCompleted }: 
     return () => {
       requestVersion.current += 1;
       if (openingTimer.current) clearTimeout(openingTimer.current);
+      if (completionFallbackTimer.current) clearTimeout(completionFallbackTimer.current);
       if (returnToJarFrame.current !== null) cancelAnimationFrame(returnToJarFrame.current);
       document.removeEventListener("visibilitychange", updateVisibility);
       window.removeEventListener("focus", updateVisibility);
@@ -258,18 +262,26 @@ export function MaybeDaysExperience({ maybeDaysCompleted: initiallyCompleted }: 
   const navigable = useMemo(() => [activeDraw, ...completed.items, ...skipped.items].filter((item): item is MaybeDayDrawView => Boolean(item)), [activeDraw, completed.items, skipped.items]);
   const viewerIndex = viewerDraw ? navigable.findIndex((item) => item.ref === viewerDraw.ref) : -1;
   const completeJourney = async () => {
-    if (completionPending) return;
+    if (completionLock.current) return;
+    completionLock.current = true;
     setCompletionPending(true);
     setCompletionError("");
     try {
       const result = await completeMaybeDaysJourney();
       if (!result.ok) return setCompletionError(result.error);
       setMaybeDaysCompleted(true);
-      router.replace("/?view=world");
+      void recordMaybeDaysNextDestination();
+      router.replace("/our-corner");
+      completionFallbackTimer.current = setTimeout(() => {
+        if (window.location.pathname === "/maybe-days") window.location.assign("/our-corner");
+      }, 1500);
     } catch {
       setCompletionError("The next step could not be saved. Please try again.");
     } finally {
-      setCompletionPending(false);
+      if (!completionFallbackTimer.current) {
+        completionLock.current = false;
+        setCompletionPending(false);
+      }
     }
   };
   const returnToJar = () => {
@@ -316,7 +328,7 @@ export function MaybeDaysExperience({ maybeDaysCompleted: initiallyCompleted }: 
       title="The jar will keep gathering maybes"
       message="Every completed activity can stay here as part of your shared history, and the jar will always be ready with another."
       primary={maybeDaysCompleted
-        ? <Link href="/?view=world" prefetch>Continue the journey</Link>
+        ? <Link href="/our-corner" prefetch>Continue the journey</Link>
         : <button type="button" disabled={completionPending} aria-busy={completionPending} onClick={() => void completeJourney()}>{completionPending ? "Continuing…" : "Continue the journey"}</button>}
       secondary={<button type="button" onClick={returnToJar}>Return to the Maybe Jar</button>}
     >{completionError ? <p role="alert">{completionError}</p> : null}</RoomCompletionPanel> : null}

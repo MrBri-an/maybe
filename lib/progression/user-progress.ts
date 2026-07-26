@@ -12,7 +12,7 @@ import { getQuestionBank, type QuizId } from "@/features/puzzles/quiz/question-b
 import { attemptAsJson, type SavedQuizAttempt, type VerifiedQuizResult } from "@/features/puzzles/quiz/contracts";
 import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 
-export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
+export type SafeLocation = "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
 export type PuzzleId = "millionaire" | "kculture" | "constellation";
 export type PuzzleRoomCompletionResult =
   | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
@@ -32,9 +32,12 @@ export type HerUniverseCompletionResult =
 export type MaybeDaysCompletionResult =
   | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
   | { ok: false; reason: "unauthorized" | "missing_prerequisite" | "completion_write_failed" };
+export type OurCornerCompletionResult =
+  | { ok: true; alreadyCompleted: boolean; navigationMetadataSaved: boolean }
+  | { ok: false; reason: "unauthorized" | "missing_prerequisite" | "completion_write_failed" };
 export const worldDestinationSchema = z.enum(JOURNEY_ROOM_SLUGS);
 const pageSchema = z.number().int().min(1).max(30);
-const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio", "question_garden", "gallery", "her-universe", "maybe-days"]);
+const locationSchema = z.enum(["world", "storybook", "library", "puzzle_room", "radio", "question_garden", "gallery", "her-universe", "maybe-days", "our-corner"]);
 const puzzleSchema = z.enum(["millionaire", "kculture", "constellation"]);
 
 async function authorizeProgress() {
@@ -581,6 +584,46 @@ export async function persistMaybeDaysCompletion(): Promise<MaybeDaysCompletionR
     : { ok: false, reason: "completion_write_failed" };
 }
 
+export async function persistOurCornerCompletion(): Promise<OurCornerCompletionResult> {
+  const authorized = await authorizeProgress();
+  if (!authorized) return { ok: false, reason: "unauthorized" };
+  const loaded = await loadOrCreateAuthorizedProgress(authorized);
+  if (!loaded) return { ok: false, reason: "completion_write_failed" };
+  if (!loaded.progress.storybook_completed_at
+    || !loaded.progress.library_completed_at
+    || !loaded.progress.puzzle_room_completed_at
+    || !loaded.progress.radio_completed_at
+    || !loaded.progress.question_garden_completed_at
+    || !loaded.progress.gallery_completed_at
+    || !loaded.progress.her_universe_completed_at
+    || !loaded.progress.maybe_days_completed_at) {
+    return { ok: false, reason: "missing_prerequisite" };
+  }
+  if (loaded.progress.our_corner_completed_at) {
+    return { ok: true, alreadyCompleted: true, navigationMetadataSaved: false };
+  }
+  const { data: completed, error } = await authorized.admin.from("user_journey_progress")
+    .update({ our_corner_completed_at: new Date().toISOString() })
+    .eq("user_id", authorized.access.user.id)
+    .is("our_corner_completed_at", null)
+    .select("user_id")
+    .maybeSingle();
+  if (error) {
+    console.error("Our Corner completion operation failed", { operation: "persist_completion", code: error.code });
+    return { ok: false, reason: "completion_write_failed" };
+  }
+  if (completed?.user_id === authorized.access.user.id) {
+    return { ok: true, alreadyCompleted: false, navigationMetadataSaved: false };
+  }
+  const { data: current } = await authorized.admin.from("user_journey_progress")
+    .select("our_corner_completed_at")
+    .eq("user_id", authorized.access.user.id)
+    .maybeSingle();
+  return current?.our_corner_completed_at
+    ? { ok: true, alreadyCompleted: true, navigationMetadataSaved: false }
+    : { ok: false, reason: "completion_write_failed" };
+}
+
 export async function saveSafeLocation(location: SafeLocation) {
   const parsed = locationSchema.safeParse(location);
   if (!parsed.success) return false;
@@ -595,6 +638,7 @@ export async function saveSafeLocation(location: SafeLocation) {
   if (parsed.data === "gallery" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at || !loaded.progress.radio_completed_at || !loaded.progress.question_garden_completed_at)) return false;
   if (parsed.data === "her-universe" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at || !loaded.progress.radio_completed_at || !loaded.progress.question_garden_completed_at || !loaded.progress.gallery_completed_at)) return false;
   if (parsed.data === "maybe-days" && (!loaded.progress.storybook_completed_at || !loaded.progress.library_completed_at || !loaded.progress.puzzle_room_completed_at || !loaded.progress.radio_completed_at || !loaded.progress.question_garden_completed_at || !loaded.progress.gallery_completed_at || !loaded.progress.her_universe_completed_at)) return false;
+  if (parsed.data === "our-corner" && !loaded.progress.maybe_days_completed_at) return false;
   const { error } = await authorized.admin.from("user_journey_progress").update({ last_location: parsed.data }).eq("user_id", authorized.access.user.id);
   return !error;
 }
@@ -630,5 +674,6 @@ export function deriveResumeDestination(progress: UserJourneyProgress, firstProg
   if (progress.last_location === "gallery" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at && progress.radio_completed_at && progress.question_garden_completed_at) return "/gallery";
   if (progress.last_location === "her-universe" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at && progress.radio_completed_at && progress.question_garden_completed_at && progress.gallery_completed_at) return "/her-universe";
   if (progress.last_location === "maybe-days" && progress.storybook_completed_at && progress.library_completed_at && progress.puzzle_room_completed_at && progress.radio_completed_at && progress.question_garden_completed_at && progress.gallery_completed_at && progress.her_universe_completed_at) return "/maybe-days";
+  if (progress.last_location === "our-corner" && progress.maybe_days_completed_at) return "/our-corner";
   return "/?view=world";
 }
