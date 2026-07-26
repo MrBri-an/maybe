@@ -755,5 +755,5 @@ export async function completeOurCornerJourney() {
 export async function recordOurCornerNextDestination() {
   const authorized = await authorizeOurCorner();
   if (!authorized) return false;
-  return saveWorldDestination("open-when");
+  return saveWorldDestination("the-world-i-can-give-you");
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { archiveCustomGardenQuestion, loadGardenQuestion, persistCustomGardenQuestion, persistGardenDraft, persistGardenFollowUp, persistGardenPosition, persistGardenReaction, persistQuestionGardenCompletion, skipGardenAnswer, submitGardenAnswer, updateSealedGardenAnswer } from "@/lib/question-garden/answers";
+import { authorizeQuestionGarden, loadQuestionGardenFoundation } from "@/lib/question-garden/foundation";
 
 export async function loadQuestionGardenQuestion(questionId: string) {
   return loadGardenQuestion(questionId);
@@ -34,4 +35,9 @@ export async function archiveQuestionGardenQuestion(questionId: string) {
 }
 export async function completeQuestionGardenJourney() {
   return persistQuestionGardenCompletion();
+}
+export async function reloadQuestionGardenFoundation() {
+  const authorized = await authorizeQuestionGarden();
+  if (!authorized) return { ok: false as const };
+  return { ok: true as const, foundation: await loadQuestionGardenFoundation(authorized) };
 }

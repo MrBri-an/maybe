@@ -10,7 +10,7 @@ export const JOURNEY_ROOMS = [
   { slug: "her-universe", name: "Her Universe", note: "Every light that makes her who she is", x: 15, y: 68, route: "/her-universe", implemented: true },
   { slug: "maybe-days", name: "Maybe Days", note: "Gentle ideas for time together, from anywhere", x: 9, y: 39, route: "/maybe-days", implemented: true },
   { slug: "our-corner", name: "Our Corner", note: "A calm private conversation space", x: 24, y: 17, route: "/our-corner", implemented: true },
-  { slug: "open-when", name: "Open When", note: "Letters for another phase", x: 50, y: 30, route: null, implemented: false },
+  { slug: "the-world-i-can-give-you", name: "The World I Can Give You", note: "One private letter at the end of the path", x: 50, y: 30, route: "/the-world-i-can-give-you", implemented: true },
 ] as const;
 
 export const JOURNEY_ROOM_SLUGS = JOURNEY_ROOMS.map((room) => room.slug) as [
@@ -29,6 +29,7 @@ export type JourneyCompletion = {
   herUniverse?: boolean;
   maybeDays?: boolean;
   ourCorner?: boolean;
+  finalWorld?: boolean;
 };
 
 function roomCompleted(slug: JourneyRoomSlug, completion: JourneyCompletion) {
@@ -41,6 +42,7 @@ function roomCompleted(slug: JourneyRoomSlug, completion: JourneyCompletion) {
   if (slug === "her-universe") return Boolean(completion.herUniverse);
   if (slug === "maybe-days") return Boolean(completion.maybeDays);
   if (slug === "our-corner") return Boolean(completion.ourCorner);
+  if (slug === "the-world-i-can-give-you") return Boolean(completion.finalWorld);
   return false;
 }
 
@@ -60,11 +62,11 @@ export function getJourneyNavigation(slug: JourneyRoomSlug, completion: JourneyC
     nextImplemented,
     nextUnlocked,
     nextHref: nextUnlocked ? nextRoom?.route ?? null : null,
-    nextLabel: nextImplemented ? "Next" : completed && nextRoom ? `${nextRoom.name} · Next destination` : "Next world coming later",
+    nextLabel: nextImplemented ? "Next" : completed && nextRoom ? `${nextRoom.name} · Next destination` : "Journey complete",
   };
 }
 
-export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false) {
+export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false, finalWorldCompleted = false) {
   return {
     storybook: storybookCompleted ? "completed" : "current",
     library: libraryCompleted ? "completed" : storybookCompleted ? "current" : "locked",
@@ -75,12 +77,12 @@ export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: 
     herUniverse: herUniverseCompleted ? "completed" : galleryCompleted ? "current" : "later",
     maybeDays: maybeDaysCompleted ? "completed" : herUniverseCompleted ? "current" : "later",
     ourCorner: ourCornerCompleted ? "completed" : maybeDaysCompleted ? "current" : "later",
-    future: ourCornerCompleted ? "next" : "later",
+    finalWorld: finalWorldCompleted ? "completed" : ourCornerCompleted ? "current" : "later",
   } satisfies Record<string, JourneyRoomState>;
 }
 
-export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false): JourneyRoomState {
-  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted);
+export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false, finalWorldCompleted = false): JourneyRoomState {
+  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted, ourCornerCompleted, finalWorldCompleted);
   if (slug === "storybook") return states.storybook;
   if (slug === "library") return states.library;
   if (slug === "puzzle-room") return states.puzzleRoom;
@@ -90,11 +92,12 @@ export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"]
   if (slug === "her-universe") return states.herUniverse;
   if (slug === "maybe-days") return states.maybeDays;
   if (slug === "our-corner") return states.ourCorner;
-  return states.future;
+  return states.finalWorld;
 }
 
-export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false) {
-  if (ourCornerCompleted) return { message: "Open When is the next destination", completed: 9 };
+export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false, ourCornerCompleted = false, finalWorldCompleted = false) {
+  if (finalWorldCompleted) return { message: "The world is complete", completed: 10 };
+  if (ourCornerCompleted) return { message: "The World I Can Give You is available", completed: 9 };
   if (maybeDaysCompleted) return { message: "Our Corner is the next destination", completed: 8 };
   if (herUniverseCompleted) return { message: "Maybe Days is available", completed: 7 };
   if (galleryCompleted) return { message: "Her Universe is ready to explore", completed: 6 };

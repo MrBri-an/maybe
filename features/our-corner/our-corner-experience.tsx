@@ -73,9 +73,9 @@ export function OurCornerExperience({ ourCornerCompleted: initiallyCompleted }: 
       }
       setCompleted(true);
       void recordOurCornerNextDestination();
-      router.replace("/?view=world");
+      router.replace("/the-world-i-can-give-you");
       fallbackTimer.current = setTimeout(() => {
-        if (window.location.pathname === "/our-corner") window.location.assign("/?view=world");
+        if (window.location.pathname === "/our-corner") window.location.assign("/the-world-i-can-give-you");
       }, 1500);
     } catch {
       setCompletionError("The next step could not be saved. Please try again.");
@@ -118,7 +118,7 @@ export function OurCornerExperience({ ourCornerCompleted: initiallyCompleted }: 
           title="This corner will always remain open"
           message="Every conversation, quiet moment and shared thought can continue waiting here whenever you return."
           primary={completed
-            ? <Link href="/?view=world" prefetch>Continue the journey</Link>
+            ? <Link href="/the-world-i-can-give-you" prefetch>Continue the journey</Link>
             : <button type="button" disabled={completionPending} aria-busy={completionPending} onClick={() => void continueJourney()}>{completionPending ? "Continuing…" : "Continue the journey"}</button>}
           secondary={<button type="button" onClick={() => setCompletionOpen(false)}>Return to Our Corner</button>}
         >{completionError ? <p role="alert">{completionError}</p> : null}</RoomCompletionPanel>

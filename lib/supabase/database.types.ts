@@ -420,6 +420,44 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      final_world_letter: {
+        Row: {
+          id: string;
+          author_user_id: string;
+          recipient_user_id: string;
+          title: string;
+          body: string;
+          status: "draft" | "sealed" | "opened" | "withdrawn";
+          sealed_at: string | null;
+          opened_at: string | null;
+          withdrawn_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          author_user_id: string;
+          recipient_user_id: string;
+          title: string;
+          body: string;
+          status?: "draft" | "sealed" | "opened" | "withdrawn";
+          sealed_at?: string | null;
+          opened_at?: string | null;
+          withdrawn_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          body?: string;
+          status?: "draft" | "sealed" | "opened" | "withdrawn";
+          sealed_at?: string | null;
+          opened_at?: string | null;
+          withdrawn_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -446,8 +484,9 @@ export type Database = {
           her_universe_completed_at: string | null;
           maybe_days_completed_at: string | null;
           our_corner_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
-          last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
+          final_world_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you";
+          last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you" | null;
           created_at: string;
           updated_at: string;
         };
@@ -476,8 +515,9 @@ export type Database = {
           her_universe_completed_at?: string | null;
           maybe_days_completed_at?: string | null;
           our_corner_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
-          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
+          final_world_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you";
+          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -505,8 +545,9 @@ export type Database = {
           her_universe_completed_at?: string | null;
           maybe_days_completed_at?: string | null;
           our_corner_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner";
-          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
+          final_world_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you";
+          last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "the-world-i-can-give-you" | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -534,6 +575,26 @@ export type Database = {
         Args: { p_draw_id: string };
         Returns: Database["public"]["Tables"]["maybe_day_draws"]["Row"];
       };
+      has_final_world_access: {
+        Args: { p_user_id?: string };
+        Returns: boolean;
+      };
+      save_final_world_letter_draft: {
+        Args: { p_title: string; p_body: string };
+        Returns: Database["public"]["Tables"]["final_world_letter"]["Row"];
+      };
+      seal_final_world_letter: {
+        Args: { p_letter_id: string };
+        Returns: Database["public"]["Tables"]["final_world_letter"]["Row"];
+      };
+      open_final_world_letter: {
+        Args: { p_letter_id: string };
+        Returns: Database["public"]["Tables"]["final_world_letter"]["Row"];
+      };
+      withdraw_final_world_letter: {
+        Args: { p_letter_id: string };
+        Returns: Database["public"]["Tables"]["final_world_letter"]["Row"];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -547,3 +608,4 @@ export type GalleryMedia = Database["public"]["Tables"]["gallery_media"]["Row"];
 export type QuestionGardenQuestion = Database["public"]["Tables"]["question_garden_questions"]["Row"];
 export type QuestionGardenAnswer = Database["public"]["Tables"]["question_garden_answers"]["Row"];
 export type UserJourneyProgress = Database["public"]["Tables"]["user_journey_progress"]["Row"];
+export type FinalWorldLetter = Database["public"]["Tables"]["final_world_letter"]["Row"];

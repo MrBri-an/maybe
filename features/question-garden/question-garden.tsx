@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { archiveQuestionGardenQuestion, completeQuestionGardenJourney, loadQuestionGardenQuestion, saveQuestionGardenPosition } from "@/app/question-garden/actions";
+import { archiveQuestionGardenQuestion, completeQuestionGardenJourney, loadQuestionGardenQuestion, reloadQuestionGardenFoundation, saveQuestionGardenPosition } from "@/app/question-garden/actions";
 import { CelestialBackground } from "@/components/motion/celestial-background";
 import type { GardenBed, GardenQuestionDetail, GardenQuestionPreview, GardenQuestionState, GardenQuestionSummary, QuestionGardenFoundation } from "@/lib/question-garden/contracts";
 import { QuestionPanel } from "@/features/question-garden/question-panel";
@@ -104,6 +104,23 @@ export function QuestionGarden({ foundation, gardenCompleted }: { foundation: Qu
     setQuestionLoading(false);
     setQuestionLoadFailed(false);
   };
+  const refreshFoundation = async () => {
+    const result = await reloadQuestionGardenFoundation();
+    if (!result.ok) return;
+    setGarden(result.foundation);
+    setActiveBed((current) => current
+      ? result.foundation.beds.find((bed) => bed.category === current.category) ?? null
+      : null);
+    setPlanting(undefined);
+  };
+  const archiveQuestion = async (question: GardenQuestionPreview) => {
+    if (!window.confirm("Archive this planted question?")) return;
+    const result = await archiveQuestionGardenQuestion(question.id);
+    if (result.ok) {
+      detailCache.current.delete(question.id);
+      await refreshFoundation();
+    }
+  };
 
   return <main className={`question-garden ${celebratingReveal ? "is-revealing" : ""} ${planting !== undefined ? "is-planting" : ""}`}>
     <CelestialBackground room="garden" moonProgress={1} />
@@ -119,9 +136,9 @@ export function QuestionGarden({ foundation, gardenCompleted }: { foundation: Qu
     </section>
 
     {!activeBed ? <GardenMap beds={garden.beds} onEnter={enterBed} /> : null}
-    {activeBed ? <GardenBedPanel bed={activeBed} lastQuestionId={garden.lastQuestionId} onOpen={openQuestion} onBack={() => setActiveBed(null)} /> : null}
+    {activeBed ? <GardenBedPanel bed={activeBed} lastQuestionId={garden.lastQuestionId} onOpen={openQuestion} onArchive={archiveQuestion} onBack={() => setActiveBed(null)} /> : null}
     {activeQuestion ? <QuestionPanel key={`${activeQuestion.id}:${questionLoading ? "loading" : "ready"}`} initialDetail={activeQuestion} loading={questionLoading} loadFailed={questionLoadFailed} onClose={closeQuestion} onChange={updateQuestion} /> : null}
-    {planting !== undefined ? <PlantQuestionPanel initial={planting} onClose={() => setPlanting(undefined)} onSaved={() => window.location.reload()} /> : null}
+    {planting !== undefined ? <PlantQuestionPanel initial={planting} onClose={() => setPlanting(undefined)} onSaved={() => void refreshFoundation()} /> : null}
     {!activeBed ? <GardenCompletionPanel alreadyCompleted={gardenCompleted} /> : null}
   </main>;
 }
@@ -185,14 +202,14 @@ function GardenMap({ beds, onEnter }: { beds: GardenBed[]; onEnter: (bed: Garden
   </section>;
 }
 
-function GardenBedPanel({ bed, lastQuestionId, onOpen, onBack }: { bed: GardenBed; lastQuestionId: string | null; onOpen: (question: GardenQuestionPreview) => void; onBack: () => void }) {
+function GardenBedPanel({ bed, lastQuestionId, onOpen, onArchive, onBack }: { bed: GardenBed; lastQuestionId: string | null; onOpen: (question: GardenQuestionPreview) => void; onArchive: (question: GardenQuestionPreview) => void; onBack: () => void }) {
   return <section className="garden-panel" aria-labelledby="garden-bed-title">
     <button className="garden-panel-back" type="button" onClick={onBack}>← Garden map</button>
     <header><p>A quiet bed of questions</p><h2 id="garden-bed-title">{bed.category}</h2><span>Choose any seed when you feel ready. Skipping is always allowed.</span><GardenLegend counts={bed.counts} /></header>
     <div className="garden-question-list">
       {bed.questions.map((question, index) => <article key={question.id} className={`garden-question is-${question.state} ${lastQuestionId === question.id ? "is-last-opened" : ""}`}>
         <span aria-hidden="true">{question.state === "seed" ? "•" : question.state === "bud" ? "❀" : "✿"}</span>
-        <div><small>{question.state === "bloom" ? "Both answered" : question.ownSubmitted ? "Answered" : question.partnerSubmitted ? "One answer is sealed" : "Unanswered"} · {String(index + 1).padStart(2, "0")}</small><h3>{question.prompt}</h3>{question.personalNote ? <p>{question.personalNote}</p> : null}{question.responseType === "choice" && question.options ? <p>{question.options.join(" · ")}</p> : null}<em>{question.state === "bloom" ? "Both answers have bloomed." : question.ownSubmitted ? "Your answer is safely planted." : question.partnerSubmitted ? "One answer is waiting for your side." : question.ownStatus === "draft" ? "Your saved thought is waiting." : question.ownStatus === "skipped" ? "Skipped for now. You can answer whenever you like." : "Untouched and waiting without pressure."}</em><button type="button" onClick={() => void onOpen(question)}>{question.state === "bloom" ? "View answers" : question.ownSubmitted ? "Edit answer" : "Answer gently"}</button>{question.isPlanter && !question.hasAnyAnswer ? <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("garden-edit-question", { detail: question }))}>Edit planted question</button> : null}{question.isPlanter ? <button type="button" onClick={async () => { if (window.confirm("Archive this planted question?")) { const result = await archiveQuestionGardenQuestion(question.id); if (result.ok) window.location.reload(); } }}>Archive question</button> : null}</div>
+        <div><small>{question.state === "bloom" ? "Both answered" : question.ownSubmitted ? "Answered" : question.partnerSubmitted ? "One answer is sealed" : "Unanswered"} · {String(index + 1).padStart(2, "0")}</small><h3>{question.prompt}</h3>{question.personalNote ? <p>{question.personalNote}</p> : null}{question.responseType === "choice" && question.options ? <p>{question.options.join(" · ")}</p> : null}<em>{question.state === "bloom" ? "Both answers have bloomed." : question.ownSubmitted ? "Your answer is safely planted." : question.partnerSubmitted ? "One answer is waiting for your side." : question.ownStatus === "draft" ? "Your saved thought is waiting." : question.ownStatus === "skipped" ? "Skipped for now. You can answer whenever you like." : "Untouched and waiting without pressure."}</em><button type="button" onClick={() => void onOpen(question)}>{question.state === "bloom" ? "View answers" : question.ownSubmitted ? "Edit answer" : "Answer gently"}</button>{question.isPlanter && !question.hasAnyAnswer ? <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("garden-edit-question", { detail: question }))}>Edit planted question</button> : null}{question.isPlanter ? <button type="button" onClick={() => void onArchive(question)}>Archive question</button> : null}</div>
       </article>)}
     </div>
   </section>;
