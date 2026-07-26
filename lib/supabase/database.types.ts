@@ -336,6 +336,36 @@ export type Database = {
         Update: { body?: string; updated_at?: string; archived_at?: string | null };
         Relationships: [];
       };
+      maybe_day_activities: {
+        Row: { id: string; slug: string; title: string; prompt: string; category: "conversation" | "creative" | "games" | "music" | "photos" | "watch-together"; icon_key: string; estimated_minutes: number | null; requires_voice: boolean; requires_video: boolean; sort_order: number; is_active: boolean; created_at: string };
+        Insert: { id?: string; slug: string; title: string; prompt: string; category: "conversation" | "creative" | "games" | "music" | "photos" | "watch-together"; icon_key: string; estimated_minutes?: number | null; requires_voice?: boolean; requires_video?: boolean; sort_order?: number; is_active?: boolean; created_at?: string };
+        Update: { slug?: string; title?: string; prompt?: string; category?: "conversation" | "creative" | "games" | "music" | "photos" | "watch-together"; icon_key?: string; estimated_minutes?: number | null; requires_voice?: boolean; requires_video?: boolean; sort_order?: number; is_active?: boolean };
+        Relationships: [];
+      };
+      maybe_day_draws: {
+        Row: { id: string; activity_id: string; selected_by_user_id: string; status: "selected" | "started" | "completed" | "skipped"; selected_at: string; started_at: string | null; completed_at: string | null; skipped_at: string | null; skip_reason: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; activity_id: string; selected_by_user_id: string; status?: "selected" | "started" | "completed" | "skipped"; selected_at?: string; started_at?: string | null; completed_at?: string | null; skipped_at?: string | null; skip_reason?: string | null; created_at?: string; updated_at?: string };
+        Update: { status?: "selected" | "started" | "completed" | "skipped"; started_at?: string | null; completed_at?: string | null; skipped_at?: string | null; skip_reason?: string | null; updated_at?: string };
+        Relationships: [];
+      };
+      maybe_day_checkins: {
+        Row: { draw_id: string; user_id: string; confirmed_at: string; created_at: string; updated_at: string };
+        Insert: { draw_id: string; user_id: string; confirmed_at?: string; created_at?: string; updated_at?: string };
+        Update: { confirmed_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      maybe_day_comments: {
+        Row: { id: string; draw_id: string; author_user_id: string; body: string; created_at: string; updated_at: string; archived_at: string | null };
+        Insert: { id?: string; draw_id: string; author_user_id: string; body: string; created_at?: string; updated_at?: string; archived_at?: string | null };
+        Update: { body?: string; updated_at?: string; archived_at?: string | null };
+        Relationships: [];
+      };
+      maybe_day_hearts: {
+        Row: { draw_id: string; user_id: string; created_at: string };
+        Insert: { draw_id: string; user_id: string; created_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       user_journey_progress: {
         Row: {
           user_id: string;
@@ -360,7 +390,8 @@ export type Database = {
           question_garden_completed_at: string | null;
           gallery_completed_at: string | null;
           her_universe_completed_at: string | null;
-          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          maybe_days_completed_at: string | null;
+          last_location: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
           last_world_destination: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at: string;
           updated_at: string;
@@ -388,7 +419,8 @@ export type Database = {
           question_garden_completed_at?: string | null;
           gallery_completed_at?: string | null;
           her_universe_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          maybe_days_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           created_at?: string;
           updated_at?: string;
@@ -415,7 +447,8 @@ export type Database = {
           question_garden_completed_at?: string | null;
           gallery_completed_at?: string | null;
           her_universe_completed_at?: string | null;
-          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe";
+          maybe_days_completed_at?: string | null;
+          last_location?: "world" | "storybook" | "library" | "puzzle_room" | "radio" | "question_garden" | "gallery" | "her-universe" | "maybe-days";
           last_world_destination?: "storybook" | "library" | "puzzle-room" | "jessicas-radio" | "question-garden" | "gallery" | "her-universe" | "maybe-days" | "our-corner" | "open-when" | null;
           updated_at?: string;
         };
@@ -435,6 +468,14 @@ export type Database = {
           revealed: boolean;
           reveal_timestamp: string | null;
         }[];
+      };
+      select_maybe_day_activity: {
+        Args: { p_selected_by_user_id: string };
+        Returns: Database["public"]["Tables"]["maybe_day_draws"]["Row"];
+      };
+      complete_maybe_day_if_confirmed: {
+        Args: { p_draw_id: string };
+        Returns: Database["public"]["Tables"]["maybe_day_draws"]["Row"];
       };
     };
     Enums: Record<string, never>;

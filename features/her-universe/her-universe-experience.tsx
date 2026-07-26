@@ -94,9 +94,9 @@ export function HerUniverseExperience({ objects, herUniverseCompleted }: { objec
     try {
       const result = await completeHerUniverseJourney();
       if (result.ok) {
-        router.replace("/?view=world");
+        router.replace("/maybe-days");
         fallback.current = setTimeout(() => {
-          if (window.location.pathname === "/her-universe") window.location.assign("/?view=world");
+          if (window.location.pathname === "/her-universe") window.location.assign("/maybe-days");
         }, 1500);
         return;
       }
@@ -184,7 +184,7 @@ export function HerUniverseExperience({ objects, herUniverseCompleted }: { objec
         title="There is still more to discover"
         message="This universe will remain here, waiting for every new thing about you that deserves its own light."
         primary={herUniverseCompleted
-          ? <Link href="/?view=world" prefetch>Continue the journey</Link>
+          ? <Link href="/maybe-days" prefetch>Continue the journey</Link>
           : <button type="button" disabled={completionPending} aria-busy={completionPending} onClick={() => void completeJourney()}>{completionPending ? "Continuing…" : "Continue the journey"}</button>}
         secondary={<button type="button" onClick={() => document.getElementById("her-universe-map")?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" })}>Explore Her Universe again</button>}
       >{completionError ? <p role="alert">{completionError}</p> : null}</RoomCompletionPanel> : null}

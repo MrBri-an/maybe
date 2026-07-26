@@ -8,7 +8,7 @@ export const JOURNEY_ROOMS = [
   { slug: "question-garden", name: "Question Garden", note: "Thoughtful questions, always optional", x: 62, y: 88, route: "/question-garden", implemented: true },
   { slug: "gallery", name: "Gallery", note: "A few meaningful moments", x: 36, y: 88, route: "/gallery", implemented: true },
   { slug: "her-universe", name: "Her Universe", note: "Every light that makes her who she is", x: 15, y: 68, route: "/her-universe", implemented: true },
-  { slug: "maybe-days", name: "Maybe Days", note: "Gentle ideas for time together", x: 9, y: 39, route: null, implemented: false },
+  { slug: "maybe-days", name: "Maybe Days", note: "Gentle ideas for time together, from anywhere", x: 9, y: 39, route: "/maybe-days", implemented: true },
   { slug: "our-corner", name: "Our Corner", note: "A calm private conversation space", x: 24, y: 17, route: null, implemented: false },
   { slug: "open-when", name: "Open When", note: "Letters for another phase", x: 50, y: 30, route: null, implemented: false },
 ] as const;
@@ -27,6 +27,7 @@ export type JourneyCompletion = {
   questionGarden: boolean;
   gallery?: boolean;
   herUniverse?: boolean;
+  maybeDays?: boolean;
 };
 
 function roomCompleted(slug: JourneyRoomSlug, completion: JourneyCompletion) {
@@ -37,6 +38,7 @@ function roomCompleted(slug: JourneyRoomSlug, completion: JourneyCompletion) {
   if (slug === "question-garden") return completion.questionGarden;
   if (slug === "gallery") return Boolean(completion.gallery);
   if (slug === "her-universe") return Boolean(completion.herUniverse);
+  if (slug === "maybe-days") return Boolean(completion.maybeDays);
   return false;
 }
 
@@ -60,7 +62,7 @@ export function getJourneyNavigation(slug: JourneyRoomSlug, completion: JourneyC
   };
 }
 
-export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false) {
+export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false) {
   return {
     storybook: storybookCompleted ? "completed" : "current",
     library: libraryCompleted ? "completed" : storybookCompleted ? "current" : "locked",
@@ -69,13 +71,14 @@ export function getJourneyStates(storybookCompleted: boolean, libraryCompleted: 
     questionGarden: questionGardenCompleted ? "completed" : radioCompleted ? "current" : "later",
     gallery: galleryCompleted ? "completed" : questionGardenCompleted ? "current" : "later",
     herUniverse: herUniverseCompleted ? "completed" : galleryCompleted ? "current" : "later",
-    maybeDays: herUniverseCompleted ? "next" : "later",
+    maybeDays: maybeDaysCompleted ? "completed" : herUniverseCompleted ? "current" : "later",
+    ourCorner: maybeDaysCompleted ? "next" : "later",
     future: "later",
   } satisfies Record<string, JourneyRoomState>;
 }
 
-export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false): JourneyRoomState {
-  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted);
+export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"], storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false): JourneyRoomState {
+  const states = getJourneyStates(storybookCompleted, libraryCompleted, puzzleRoomCompleted, radioCompleted, questionGardenCompleted, galleryCompleted, herUniverseCompleted, maybeDaysCompleted);
   if (slug === "storybook") return states.storybook;
   if (slug === "library") return states.library;
   if (slug === "puzzle-room") return states.puzzleRoom;
@@ -84,11 +87,13 @@ export function getJourneyRoomState(slug: (typeof JOURNEY_ROOMS)[number]["slug"]
   if (slug === "gallery") return states.gallery;
   if (slug === "her-universe") return states.herUniverse;
   if (slug === "maybe-days") return states.maybeDays;
+  if (slug === "our-corner") return states.ourCorner;
   return states.future;
 }
 
-export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false) {
-  if (herUniverseCompleted) return { message: "Maybe Days is the next destination", completed: 7 };
+export function getJourneySummary(storybookCompleted: boolean, libraryCompleted: boolean, puzzleRoomCompleted = false, radioCompleted = false, questionGardenCompleted = false, galleryCompleted = false, herUniverseCompleted = false, maybeDaysCompleted = false) {
+  if (maybeDaysCompleted) return { message: "Our Corner is the next destination", completed: 8 };
+  if (herUniverseCompleted) return { message: "Maybe Days is available", completed: 7 };
   if (galleryCompleted) return { message: "Her Universe is ready to explore", completed: 6 };
   if (questionGardenCompleted) return { message: "The Gallery is ready to explore", completed: 5 };
   if (radioCompleted) return { message: "The Question Garden is ready to explore", completed: 4 };
