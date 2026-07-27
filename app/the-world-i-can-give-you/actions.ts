@@ -4,7 +4,6 @@ import { z } from "zod";
 import { authorizeFinalWorld } from "@/lib/final-world/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { FinalWorldLetter } from "@/lib/supabase/database.types";
-import { getServerSupabaseConfig } from "@/lib/supabase/server-config";
 import { persistFinalWorldCompletion } from "@/lib/progression/user-progress";
 
 const draftSchema = z.object({
@@ -72,7 +71,7 @@ export type FinalRecipientState = { ready: boolean };
 
 type PrepareRecipientResult =
   | { ok: true; recipient: FinalRecipientState }
-  | { ok: false; error: string; code: "invalid_email" | "conflict" | "invitation_failed" | "unauthorized" };
+  | { ok: false; error: string; code: "invalid_email" | "account_not_found" | "conflict" | "invitation_failed" | "unauthorized" };
 
 async function findAuthUserByEmail(context: AuthorContext, email: string) {
   for (let page = 1; page <= 10; page += 1) {
@@ -112,11 +111,6 @@ export async function prepareFinalLetterRecipient(input: unknown): Promise<Prepa
   if (!context) {
     return { ok: false, code: "unauthorized", error: "Only the approved owner can prepare Jessica’s access." };
   }
-  const config = getServerSupabaseConfig();
-  if (!config) {
-    return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be prepared. Your letter is still here. Please try again." };
-  }
-
   const { data: activeGuests, error: guestError } = await context.admin.from("app_members")
     .select("approved_email,user_id")
     .eq("role", "guest")
@@ -141,32 +135,12 @@ export async function prepareFinalLetterRecipient(input: unknown): Promise<Prepa
     return { ok: false, code: "conflict", error: "That address already belongs to a different approved membership. Nothing was changed." };
   }
 
-  const { user: existingAuthUser, error: authLookupError } = await findAuthUserByEmail(context, parsed.data);
-  let authUser = existingAuthUser;
+  const { user: authUser, error: authLookupError } = await findAuthUserByEmail(context, parsed.data);
   if (authLookupError) {
     return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be checked. Your letter is still here." };
   }
   if (!authUser) {
-    const { data, error } = await context.admin.auth.admin.inviteUserByEmail(parsed.data, {
-      redirectTo: new URL("/auth/callback", config.appBaseUrl).toString(),
-    });
-    if (error || !data.user) {
-      const retryLookup = await findAuthUserByEmail(context, parsed.data);
-      authUser = retryLookup.user;
-      if (!authUser) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error("Final recipient invitation failed", {
-            operation: "invite_final_recipient",
-            code: error?.code ?? null,
-            message: error?.message ?? null,
-            status: error?.status ?? null,
-          });
-        }
-        return { ok: false, code: "invitation_failed", error: "Jessica’s access could not be prepared. Your letter is still here. Please try again." };
-      }
-    } else {
-      authUser = data.user;
-    }
+    return { ok: false, code: "account_not_found", error: "No existing Jessica account matched that email. Nothing was changed." };
   }
   if (matchingMember?.user_id && matchingMember.user_id !== authUser.id) {
     return { ok: false, code: "conflict", error: "That approved membership is linked to a different account. Nothing was changed." };
@@ -196,7 +170,7 @@ export async function prepareFinalLetterRecipient(input: unknown): Promise<Prepa
         hint: writeError.hint,
       });
     }
-    return { ok: false, code: "conflict", error: "Jessica’s invitation exists, but her approved membership could not be linked safely. Nothing was reassigned." };
+    return { ok: false, code: "conflict", error: "Jessica’s existing account could not be linked safely. Nothing was reassigned." };
   }
   return { ok: true, recipient: { ready: true } };
 }

@@ -303,7 +303,7 @@ function AuthorExperience({
       setSetupOpen(false);
       setSetupEmail("");
       setSaveState("idle");
-      setMessage("Jessica’s access is ready. Your letter has not changed.");
+      setMessage("Jessica’s existing account is now connected to this world.");
       if (setupPurpose === "seal") window.setTimeout(() => void seal(), 0);
     } else {
       setSetupError(result.error);
@@ -374,7 +374,7 @@ function AuthorExperience({
       <form className="final-recipient-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="recipient-setup-title" onSubmit={prepareRecipient}>
         <p>Private recipient</p>
         <h3 id="recipient-setup-title">Set up Jessica’s access</h3>
-        <span>Enter the email Jessica will use for this private world. Existing accounts are reused; otherwise Supabase sends one secure invitation.</span>
+        <span>Enter the email for Jessica’s existing Supabase account. No new account or invitation will be created.</span>
         <label>Email address<input type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} autoComplete="email" maxLength={254} required autoFocus /></label>
         {setupError ? <p role="alert">{setupError}</p> : null}
         <div>
